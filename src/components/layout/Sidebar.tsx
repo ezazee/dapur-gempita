@@ -7,37 +7,55 @@ import {
   ClipboardCheck,
   ChefHat,
   UtensilsCrossed,
-  FileBarChart,
+  TrendingUp,
   Users,
-  Settings,
+  FileText,
+  FileBarChart,
   LogOut,
   ChevronLeft,
   Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth, AppRole } from "@/hooks/useAuth";
 
 interface NavItem {
   label: string;
   icon: React.ElementType;
   href: string;
-  roles?: string[];
+  permission?: string;
+  roles?: AppRole[];
 }
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Bahan Baku", icon: Package, href: "/ingredients" },
-  { label: "Menu Harian", icon: UtensilsCrossed, href: "/menus" },
-  { label: "Pembelian", icon: ShoppingCart, href: "/purchases" },
-  { label: "Penerimaan", icon: ClipboardCheck, href: "/receipts" },
-  { label: "Produksi", icon: ChefHat, href: "/productions" },
-  { label: "Laporan", icon: FileBarChart, href: "/reports" },
-  { label: "Pengguna", icon: Users, href: "/users" },
+  { label: "Bahan Baku", icon: Package, href: "/ingredients", permission: "ingredient.read" },
+  { label: "Menu Harian", icon: UtensilsCrossed, href: "/menus", permission: "menu.read" },
+  { label: "Pembelian", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
+  { label: "Penerimaan", icon: ClipboardCheck, href: "/receipts", permission: "receipt.read" },
+  { label: "Produksi", icon: ChefHat, href: "/productions", permission: "production.read" },
+  { label: "Pergerakan Stok", icon: TrendingUp, href: "/stock-movements" },
+  { label: "Laporan", icon: FileBarChart, href: "/reports", permission: "report.read" },
+  { label: "Pengguna", icon: Users, href: "/users", roles: ['SUPER_ADMIN'] },
+  { label: "Audit Log", icon: FileText, href: "/audit-logs", roles: ['SUPER_ADMIN', 'KEPALA_DAPUR'] },
 ];
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { hasPermission, role, signOut, profile } = useAuth();
+
+  const visibleItems = navItems.filter(item => {
+    // Check role-based access
+    if (item.roles && role && !item.roles.includes(role)) {
+      return false;
+    }
+    // Check permission-based access
+    if (item.permission && !hasPermission(item.permission)) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <aside
@@ -70,8 +88,8 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-3">
-        {navItems.map((item) => {
+      <nav className="flex-1 space-y-1 p-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        {visibleItems.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link
@@ -92,16 +110,15 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-3">
-        <Link
-          to="/settings"
-          className={cn("nav-item", collapsed && "justify-center px-2")}
-          title={collapsed ? "Pengaturan" : undefined}
-        >
-          <Settings className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span>Pengaturan</span>}
-        </Link>
+      <div className="absolute bottom-0 left-0 right-0 border-t border-sidebar-border p-3 bg-sidebar">
+        {!collapsed && profile && (
+          <div className="mb-2 px-3 py-2 text-xs text-sidebar-foreground/70">
+            <p className="font-medium text-sidebar-foreground truncate">{profile.name}</p>
+            <p className="truncate">{profile.email}</p>
+          </div>
+        )}
         <button
+          onClick={() => signOut()}
           className={cn(
             "nav-item w-full text-destructive/80 hover:text-destructive hover:bg-destructive/10",
             collapsed && "justify-center px-2"

@@ -1,30 +1,103 @@
-import { useState } from "react";
-import { ChefHat, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { ChefHat, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Email tidak valid"),
+  password: z.string().min(6, "Password minimal 6 karakter"),
+});
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Nama minimal 2 karakter"),
+  email: z.string().email("Email tidak valid"),
+  password: z.string().min(8, "Password minimal 8 karakter"),
+});
 
 export default function Auth() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, signIn, signUp } = useAuth();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
 
+  const from = location.state?.from?.pathname || "/";
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    
+    // Validate
+    const result = loginSchema.safeParse(loginData);
+    if (!result.success) {
+      setError(result.error.errors[0].message);
+      return;
+    }
+
     setIsLoading(true);
-    // TODO: Implement login with Supabase
-    setTimeout(() => setIsLoading(false), 1000);
+    
+    const { error } = await signIn(loginData.email, loginData.password);
+    
+    if (error) {
+      if (error.message.includes("Invalid login credentials")) {
+        setError("Email atau password salah");
+      } else if (error.message.includes("Email not confirmed")) {
+        setError("Email belum dikonfirmasi. Silakan cek inbox Anda.");
+      } else {
+        setError(error.message);
+      }
+    }
+    
+    setIsLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    
+    // Validate
+    const result = signupSchema.safeParse(signupData);
+    if (!result.success) {
+      setError(result.error.errors[0].message);
+      return;
+    }
+
     setIsLoading(true);
-    // TODO: Implement signup with Supabase
-    setTimeout(() => setIsLoading(false), 1000);
+    
+    const { error } = await signUp(signupData.email, signupData.password, signupData.name);
+    
+    if (error) {
+      if (error.message.includes("User already registered")) {
+        setError("Email sudah terdaftar. Silakan login.");
+      } else {
+        setError(error.message);
+      }
+    } else {
+      setSuccess("Pendaftaran berhasil! Silakan cek email Anda untuk konfirmasi.");
+      setSignupData({ name: "", email: "", password: "" });
+    }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -51,6 +124,19 @@ export default function Auth() {
         </CardHeader>
 
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="mb-4 border-primary/50 bg-primary/5">
+              <AlertDescription className="text-primary">{success}</AlertDescription>
+            </Alert>
+          )}
+
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Masuk</TabsTrigger>
@@ -67,7 +153,7 @@ export default function Auth() {
                       id="login-email"
                       type="email"
                       placeholder="nama@perusahaan.id"
-                      className="pl-10 input-focus"
+                      className="pl-10"
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       required
@@ -83,7 +169,7 @@ export default function Auth() {
                       id="login-password"
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="pl-10 pr-10 input-focus"
+                      className="pl-10 pr-10"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
@@ -121,7 +207,7 @@ export default function Auth() {
                       id="signup-name"
                       type="text"
                       placeholder="Nama Anda"
-                      className="pl-10 input-focus"
+                      className="pl-10"
                       value={signupData.name}
                       onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
                       required
@@ -137,7 +223,7 @@ export default function Auth() {
                       id="signup-email"
                       type="email"
                       placeholder="nama@perusahaan.id"
-                      className="pl-10 input-focus"
+                      className="pl-10"
                       value={signupData.email}
                       onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
                       required
@@ -153,7 +239,7 @@ export default function Auth() {
                       id="signup-password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Min. 8 karakter"
-                      className="pl-10 pr-10 input-focus"
+                      className="pl-10 pr-10"
                       value={signupData.password}
                       onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
                       required
@@ -179,6 +265,10 @@ export default function Auth() {
                     "Daftar"
                   )}
                 </Button>
+
+                <p className="text-center text-xs text-muted-foreground">
+                  Setelah mendaftar, Anda perlu menunggu admin untuk menetapkan role Anda.
+                </p>
               </form>
             </TabsContent>
           </Tabs>
