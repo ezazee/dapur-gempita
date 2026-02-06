@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { ReactNode, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -9,13 +9,36 @@ interface ProtectedRouteProps {
   allowedRoles?: AppRole[];
 }
 
-export function ProtectedRoute({ 
-  children, 
+export function ProtectedRoute({
+  children,
   requiredPermission,
-  allowedRoles 
+  allowedRoles
 }: ProtectedRouteProps) {
   const { user, loading, role, hasPermission } = useAuth();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        // Redirect to auth page with return url
+        router.replace(`/auth?from=${encodeURIComponent(pathname)}`);
+        return;
+      }
+
+      // Check role-based access
+      if (allowedRoles && role && !allowedRoles.includes(role)) {
+        router.replace('/');
+        return;
+      }
+
+      // Check permission-based access
+      if (requiredPermission && !hasPermission(requiredPermission)) {
+        router.replace('/');
+        return;
+      }
+    }
+  }, [user, loading, role, allowedRoles, requiredPermission, hasPermission, router, pathname]);
 
   if (loading) {
     return (
@@ -28,18 +51,11 @@ export function ProtectedRoute({
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
-  }
-
-  // Check role-based access
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Check permission-based access
-  if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to="/" replace />;
+  // While checking or if unauthorized (before redirect happens), show nothing or loading
+  if (!user ||
+    (allowedRoles && role && !allowedRoles.includes(role)) ||
+    (requiredPermission && !hasPermission(requiredPermission))) {
+    return null; // Or a loading spinner to prevent flash
   }
 
   return <>{children}</>;

@@ -1,5 +1,8 @@
+'use client';
+
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
@@ -25,27 +28,21 @@ interface NavItem {
   href: string;
   permission?: string;
   roles?: AppRole[];
+  excludedRoles?: AppRole[]; // Roles that should NOT see this item
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/", permission: "dashboard.read" },
-  { label: "Menu Harian", icon: UtensilsCrossed, href: "/menus", permission: "menu.read" },
-  { label: "Bahan Baku", icon: Package, href: "/ingredients", permission: "ingredient.read" },
-  { label: "Pembelian", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
-  { label: "Penerimaan", icon: ClipboardCheck, href: "/receipts", permission: "receipt.read" },
-  { label: "Produksi", icon: ChefHat, href: "/productions", permission: "production.read" },
-  { label: "Pergerakan Stok", icon: TrendingUp, href: "/stock-movements", permission: "stock.read" },
-  { label: "Laporan", icon: FileBarChart, href: "/reports", permission: "report.read" },
-  { label: "Pengguna", icon: Users, href: "/users", roles: ['SUPER_ADMIN'] },
-  { label: "Audit Log", icon: FileText, href: "/audit-logs", permission: "audit.read" },
-];
+import { navItems } from "./navItems";
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
+  const pathname = usePathname();
   const { hasPermission, role, signOut, profile } = useAuth();
 
   const visibleItems = navItems.filter(item => {
+    // Check if role is excluded
+    if (item.excludedRoles && role && item.excludedRoles.includes(role)) {
+      return false;
+    }
     // Check role-based access
     if (item.roles && role && !item.roles.includes(role)) {
       return false;
@@ -60,7 +57,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 ease-in-out",
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 ease-in-out hidden md:flex flex-col",
         collapsed ? "w-16" : "w-64"
       )}
       style={{ background: "var(--gradient-sidebar)" }}
@@ -90,11 +87,11 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
         {visibleItems.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
-              to={item.href}
+              href={item.href}
               className={cn(
                 "nav-item",
                 isActive && "active",

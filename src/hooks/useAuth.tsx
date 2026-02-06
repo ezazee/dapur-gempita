@@ -1,74 +1,69 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { getSession, login as serverLogin, logout as serverLogout } from '@/app/actions/auth';
+import { useRouter } from 'next/navigation';
 
-export type AppRole = 'SUPER_ADMIN' | 'AHLI_GIZI' | 'PEMBELI' | 'PENERIMA' | 'CHEF' | 'KEPALA_DAPUR';
+export type AppRole = 'SUPER_ADMIN' | 'ADMIN' | 'AHLI_GIZI' | 'PEMBELI' | 'PENERIMA' | 'CHEF' | 'KEPALA_DAPUR';
 
-interface Profile {
+interface User {
   id: string;
-  user_id: string;
-  name: string;
   email: string;
-  is_active: boolean;
+  name: string;
+  role: AppRole;
 }
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
-  profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
+  profile: User | null; // Alias for user to match legacy interface if needed
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Permission mapping by role
-// Flow: Ahli Gizi -> Pembeli -> Penerima -> Chef -> Kepala Dapur (monitor)
 const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
-  // Full access to everything
   SUPER_ADMIN: ['*'],
-  
-  // Mencatat menu harian dan bahan baku yang dibutuhkan
+  ADMIN: [
+    'dashboard.read',
+    'menu.create', 'menu.read', 'menu.update', 'menu.delete',
+    'purchase.create', 'purchase.read', 'purchase.update', 'purchase.delete', 'purchase.approve',
+    'receipt.create', 'receipt.read', 'receipt.update', 'receipt.delete', 'receipt.validate',
+    'production.create', 'production.read', 'production.update', 'production.delete',
+    'ingredient.create', 'ingredient.read', 'ingredient.update', 'ingredient.delete',
+    'stock.read', 'stock.update',
+    'report.read', 'report.create', 'report.delete',
+    'upload.photo',
+  ],
   AHLI_GIZI: [
     'menu.create', 'menu.read', 'menu.update', 'menu.delete',
     'ingredient.create', 'ingredient.read', 'ingredient.update',
-    'dashboard.read',
   ],
-  
-  // Mencatat bahan baku yang akan dibeli (foto, total berat)
   PEMBELI: [
     'purchase.create', 'purchase.read', 'purchase.update',
     'ingredient.read',
     'menu.read',
     'upload.photo',
-    'dashboard.read',
   ],
-  
-  // Validasi bahan dari pembeli, catat berat kotor/bersih, notes jika tidak sesuai
   PENERIMA: [
     'receipt.create', 'receipt.read', 'receipt.validate',
     'purchase.read',
     'ingredient.read',
     'upload.photo',
-    'dashboard.read',
   ],
-  
-  // Mencatat produksi/masak dan laporan harian
   CHEF: [
     'production.create', 'production.read', 'production.update',
     'menu.read',
     'ingredient.read',
+    'receipt.read',
+    'purchase.read',
+    'stock.read',
     'report.read', 'report.create',
     'upload.photo',
     'dashboard.read',
   ],
-  
-  // Hanya monitoring - akses baca ke semua aktivitas
   KEPALA_DAPUR: [
     'dashboard.read',
     'menu.read',
@@ -84,105 +79,48 @@ const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  const fetchUserData = async (userId: string) => {
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
     try {
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (profileData) {
-        setProfile(profileData);
-      }
-
-      // Fetch role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (roleData) {
-        setRole(roleData.role as AppRole);
+      const session = await getSession();
+      if (session) {
+        setUser(session);
+      } else {
+        setUser(null);
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('Session check error:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Defer Supabase calls with setTimeout
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
-  };
-
-  const signUp = async (email: string, password: string, name: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: { name },
-      },
-    });
-    return { error };
+    const result = await serverLogin(email, password);
+    if (result.success) {
+      // Re-fetch session to update state locally
+      await checkSession();
+      return { error: null };
+    }
+    return { error: result.error || 'Login failed' };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await serverLogout();
     setUser(null);
-    setSession(null);
-    setProfile(null);
-    setRole(null);
+    router.refresh(); // Refresh to trigger middleware redirect if needed
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (!role) return false;
-    const permissions = ROLE_PERMISSIONS[role];
+    if (!user || !user.role) return false;
+    const permissions = ROLE_PERMISSIONS[user.role];
     return permissions.includes('*') || permissions.includes(permission);
   };
 
@@ -190,12 +128,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        session,
-        profile,
-        role,
+        role: user?.role || null,
+        profile: user,
         loading,
         signIn,
-        signUp,
         signOut,
         hasPermission,
       }}

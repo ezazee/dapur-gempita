@@ -2,6 +2,7 @@ import { AppRole } from '@/hooks/useAuth';
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Administrator',
   AHLI_GIZI: 'Ahli Gizi',
   PEMBELI: 'Pembeli',
   PENERIMA: 'Penerima',
@@ -11,6 +12,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 
 export const ROLE_COLORS: Record<AppRole, string> = {
   SUPER_ADMIN: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  ADMIN: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   AHLI_GIZI: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   PEMBELI: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   PENERIMA: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
