@@ -80,7 +80,7 @@ const App = () => (
             <Route
               path="/stock-movements"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermission="stock.read">
                   <StockMovements />
                 </ProtectedRoute>
               }
@@ -96,7 +96,7 @@ const App = () => (
             <Route
               path="/audit-logs"
               element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'KEPALA_DAPUR']}>
+                <ProtectedRoute requiredPermission="audit.read">
                   <AuditLogs />
                 </ProtectedRoute>
               }

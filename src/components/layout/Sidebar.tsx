@@ -28,16 +28,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Bahan Baku", icon: Package, href: "/ingredients", permission: "ingredient.read" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/", permission: "dashboard.read" },
   { label: "Menu Harian", icon: UtensilsCrossed, href: "/menus", permission: "menu.read" },
+  { label: "Bahan Baku", icon: Package, href: "/ingredients", permission: "ingredient.read" },
   { label: "Pembelian", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
   { label: "Penerimaan", icon: ClipboardCheck, href: "/receipts", permission: "receipt.read" },
   { label: "Produksi", icon: ChefHat, href: "/productions", permission: "production.read" },
-  { label: "Pergerakan Stok", icon: TrendingUp, href: "/stock-movements" },
+  { label: "Pergerakan Stok", icon: TrendingUp, href: "/stock-movements", permission: "stock.read" },
   { label: "Laporan", icon: FileBarChart, href: "/reports", permission: "report.read" },
   { label: "Pengguna", icon: Users, href: "/users", roles: ['SUPER_ADMIN'] },
-  { label: "Audit Log", icon: FileText, href: "/audit-logs", roles: ['SUPER_ADMIN', 'KEPALA_DAPUR'] },
+  { label: "Audit Log", icon: FileText, href: "/audit-logs", permission: "audit.read" },
 ];
 
 export function Sidebar() {

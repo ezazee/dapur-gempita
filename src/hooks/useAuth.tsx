@@ -28,13 +28,58 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Permission mapping by role
+// Flow: Ahli Gizi -> Pembeli -> Penerima -> Chef -> Kepala Dapur (monitor)
 const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
+  // Full access to everything
   SUPER_ADMIN: ['*'],
-  AHLI_GIZI: ['menu.create', 'menu.read', 'menu.update', 'ingredient.read', 'ingredient.create', 'ingredient.update'],
-  PEMBELI: ['purchase.create', 'purchase.read', 'purchase.update_draft', 'upload.photo'],
-  PENERIMA: ['receipt.create', 'receipt.validate', 'receipt.read', 'upload.photo'],
-  CHEF: ['production.create', 'production.read', 'ingredient.read', 'menu.read', 'upload.photo'],
-  KEPALA_DAPUR: ['dashboard.read', 'report.read'],
+  
+  // Mencatat menu harian dan bahan baku yang dibutuhkan
+  AHLI_GIZI: [
+    'menu.create', 'menu.read', 'menu.update', 'menu.delete',
+    'ingredient.create', 'ingredient.read', 'ingredient.update',
+    'dashboard.read',
+  ],
+  
+  // Mencatat bahan baku yang akan dibeli (foto, total berat)
+  PEMBELI: [
+    'purchase.create', 'purchase.read', 'purchase.update',
+    'ingredient.read',
+    'menu.read',
+    'upload.photo',
+    'dashboard.read',
+  ],
+  
+  // Validasi bahan dari pembeli, catat berat kotor/bersih, notes jika tidak sesuai
+  PENERIMA: [
+    'receipt.create', 'receipt.read', 'receipt.validate',
+    'purchase.read',
+    'ingredient.read',
+    'upload.photo',
+    'dashboard.read',
+  ],
+  
+  // Mencatat produksi/masak dan laporan harian
+  CHEF: [
+    'production.create', 'production.read', 'production.update',
+    'menu.read',
+    'ingredient.read',
+    'report.read', 'report.create',
+    'upload.photo',
+    'dashboard.read',
+  ],
+  
+  // Hanya monitoring - akses baca ke semua aktivitas
+  KEPALA_DAPUR: [
+    'dashboard.read',
+    'menu.read',
+    'purchase.read',
+    'receipt.read',
+    'production.read',
+    'ingredient.read',
+    'stock.read',
+    'report.read',
+    'audit.read',
+  ],
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
