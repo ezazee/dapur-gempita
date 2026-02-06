@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChefHat, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { ChefHat, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
@@ -15,23 +14,25 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password minimal 6 karakter"),
 });
 
-const signupSchema = z.object({
-  name: z.string().min(2, "Nama minimal 2 karakter"),
-  email: z.string().email("Email tidak valid"),
-  password: z.string().min(8, "Password minimal 8 karakter"),
-});
+// Demo accounts untuk testing
+const DEMO_ACCOUNTS = [
+  { role: "SUPER_ADMIN", email: "admin@dapur.id", password: "admin123", name: "Admin Utama" },
+  { role: "AHLI_GIZI", email: "gizi@dapur.id", password: "gizi1234", name: "Ahli Gizi" },
+  { role: "PEMBELI", email: "pembeli@dapur.id", password: "pembeli1", name: "Pembeli" },
+  { role: "PENERIMA", email: "penerima@dapur.id", password: "penerima", name: "Penerima Barang" },
+  { role: "CHEF", email: "chef@dapur.id", password: "chef1234", name: "Chef Dapur" },
+  { role: "KEPALA_DAPUR", email: "kepala@dapur.id", password: "kepala12", name: "Kepala Dapur" },
+];
 
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn } = useAuth();
   
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
-  const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
 
   const from = location.state?.from?.pathname || "/";
 
@@ -70,34 +71,9 @@ export default function Auth() {
     setIsLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fillCredentials = (email: string, password: string) => {
+    setLoginData({ email, password });
     setError(null);
-    setSuccess(null);
-    
-    // Validate
-    const result = signupSchema.safeParse(signupData);
-    if (!result.success) {
-      setError(result.error.errors[0].message);
-      return;
-    }
-
-    setIsLoading(true);
-    
-    const { error } = await signUp(signupData.email, signupData.password, signupData.name);
-    
-    if (error) {
-      if (error.message.includes("User already registered")) {
-        setError("Email sudah terdaftar. Silakan login.");
-      } else {
-        setError(error.message);
-      }
-    } else {
-      setSuccess("Pendaftaran berhasil! Silakan cek email Anda untuk konfirmasi.");
-      setSignupData({ name: "", email: "", password: "" });
-    }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -131,147 +107,85 @@ export default function Auth() {
             </Alert>
           )}
 
-          {success && (
-            <Alert className="mb-4 border-primary/50 bg-primary/5">
-              <AlertDescription className="text-primary">{success}</AlertDescription>
-            </Alert>
-          )}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="login-email"
+                  type="email"
+                  placeholder="nama@perusahaan.id"
+                  className="pl-10"
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
 
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Masuk</TabsTrigger>
-              <TabsTrigger value="signup">Daftar</TabsTrigger>
-            </TabsList>
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Kata Sandi</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="pl-10 pr-10"
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
 
-            <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="nama@perusahaan.id"
-                      className="pl-10"
-                      value={loginData.email}
-                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      required
-                    />
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                "Masuk"
+              )}
+            </Button>
+          </form>
+
+          {/* Demo Accounts Section */}
+          <div className="mt-6 pt-6 border-t border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Akun Demo</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {DEMO_ACCOUNTS.map((account) => (
+                <button
+                  key={account.role}
+                  type="button"
+                  onClick={() => fillCredentials(account.email, account.password)}
+                  className="text-left p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                >
+                  <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                    {account.role.replace("_", " ")}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Kata Sandi</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="login-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="pl-10 pr-10"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                  <div className="text-[10px] text-muted-foreground truncate">
+                    {account.email}
                   </div>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Memproses...
-                    </>
-                  ) : (
-                    "Masuk"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nama Lengkap</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Nama Anda"
-                      className="pl-10"
-                      value={signupData.name}
-                      onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="nama@perusahaan.id"
-                      className="pl-10"
-                      value={signupData.email}
-                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Kata Sandi</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Min. 8 karakter"
-                      className="pl-10 pr-10"
-                      value={signupData.password}
-                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                      required
-                      minLength={8}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Memproses...
-                    </>
-                  ) : (
-                    "Daftar"
-                  )}
-                </Button>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  Setelah mendaftar, Anda perlu menunggu admin untuk menetapkan role Anda.
-                </p>
-              </form>
-            </TabsContent>
-          </Tabs>
+                </button>
+              ))}
+            </div>
+            <p className="mt-3 text-[10px] text-muted-foreground text-center">
+              Klik untuk mengisi kredensial secara otomatis
+            </p>
+          </div>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Dengan masuk, Anda menyetujui{" "}
