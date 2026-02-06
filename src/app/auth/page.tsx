@@ -170,14 +170,14 @@ export default function AuthPage() {
                     </form>
 
                     {/* Seed Button for convenience */}
-                    <div className="mt-4 flex justify-center">
+                    {/* <div className="mt-4 flex justify-center">
                         <Button variant="outline" size="sm" onClick={handleSeed} disabled={seedStatus === 'loading'}>
                             {seedStatus === 'loading' && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
                             {seedStatus === 'success' && <Check className="mr-2 h-3 w-3 text-green-500" />}
                             {seedStatus === 'error' && <AlertCircle className="mr-2 h-3 w-3 text-red-500" />}
                             Seed Database Users (Reset)
                         </Button>
-                    </div>
+                    </div> */}
 
                     {/* Demo Accounts Section */}
                     <div className="mt-6 pt-6 border-t border-border">
