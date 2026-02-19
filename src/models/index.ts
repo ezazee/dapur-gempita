@@ -12,6 +12,8 @@ import ReceiptItem from './ReceiptItem';
 import ProductionItem from './ProductionItem';
 import ReportImage from './ReportImage';
 import AuditLog from './AuditLog';
+import Recipe from './Recipe';
+import RecipeIngredient from './RecipeIngredient';
 import { sequelize } from '@/lib/sequelize';
 
 // User & Role
@@ -23,6 +25,13 @@ Menu.belongsToMany(Ingredient, { through: MenuIngredient, foreignKey: 'menuId', 
 Ingredient.belongsToMany(Menu, { through: MenuIngredient, foreignKey: 'ingredientId', otherKey: 'menuId', as: 'menus' });
 Menu.hasMany(MenuIngredient, { foreignKey: 'menuId', as: 'items' });
 MenuIngredient.belongsTo(Ingredient, { foreignKey: 'ingredientId', as: 'ingredient' });
+
+// Recipes & Ingredients
+Recipe.belongsToMany(Ingredient, { through: RecipeIngredient, foreignKey: 'recipeId', otherKey: 'ingredientId', as: 'ingredients' });
+Ingredient.belongsToMany(Recipe, { through: RecipeIngredient, foreignKey: 'ingredientId', otherKey: 'recipeId', as: 'recipes' });
+Recipe.hasMany(RecipeIngredient, { foreignKey: 'recipeId', as: 'items' });
+RecipeIngredient.belongsTo(Ingredient, { foreignKey: 'ingredientId', as: 'ingredient' });
+Recipe.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 
 // Purchase & Items
 Purchase.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
@@ -54,6 +63,11 @@ StockMovement.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 // Audit Logs
 AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// Notes
+import { Note } from './Note';
+User.hasMany(Note, { foreignKey: 'createdBy', as: 'notes' });
+Note.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
 export {
     Ingredient,
     Menu,
@@ -69,5 +83,8 @@ export {
     ProductionItem,
     ReportImage,
     AuditLog,
+    Recipe,
+    RecipeIngredient,
+    Note,
     sequelize
 };

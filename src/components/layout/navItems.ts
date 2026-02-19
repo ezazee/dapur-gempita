@@ -8,6 +8,7 @@ import {
     Users,
     FileText,
     FileBarChart,
+    StickyNote,
 } from "lucide-react";
 import { AppRole } from "@/hooks/useAuth";
 
@@ -22,7 +23,9 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/", permission: "dashboard.read", excludedRoles: ['CHEF'] },
-    { label: "Menu Harian", icon: UtensilsCrossed, href: "/menus", permission: "menu.read", excludedRoles: ['CHEF'] },
+    { label: "Jadwal Masak", icon: UtensilsCrossed, href: "/menus", permission: "menu.read", excludedRoles: ['CHEF'] },
+    { label: "Kamus Resep (Standar)", icon: ChefHat, href: "/recipes", roles: ['SUPER_ADMIN', 'AHLI_GIZI', 'KEPALA_DAPUR'] },
+    // Notes merged into Menus
     { label: "Pembelian", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
     { label: "Penerimaan", icon: ClipboardCheck, href: "/receipts", permission: "receipt.read" },
     { label: "Produksi", icon: ChefHat, href: "/productions", permission: "production.read" },

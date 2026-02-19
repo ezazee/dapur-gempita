@@ -1,30 +1,30 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '@/lib/sequelize';
+import User from './User';
 
-interface MenuAttributes {
+interface RecipeAttributes {
     id: string;
     name: string;
-    menuDate: Date;
     description?: string;
-    portionCount?: number;
+    portionSize: number; // Default 1, base for calculation
     createdBy: string;
     createdAt?: Date;
     updatedAt?: Date;
 }
 
-interface MenuCreationAttributes extends Optional<MenuAttributes, 'id'> { }
+interface RecipeCreationAttributes extends Optional<RecipeAttributes, 'id' | 'portionSize'> { }
 
-class Menu extends Model<MenuAttributes, MenuCreationAttributes> implements MenuAttributes {
+class Recipe extends Model<RecipeAttributes, RecipeCreationAttributes> implements RecipeAttributes {
     declare public id: string;
     declare public name: string;
-    declare public menuDate: Date;
     declare public description: string;
+    declare public portionSize: number;
     declare public createdBy: string;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
 
-Menu.init(
+Recipe.init(
     {
         id: {
             type: DataTypes.UUID,
@@ -35,32 +35,27 @@ Menu.init(
             type: DataTypes.STRING,
             allowNull: false,
         },
-        menuDate: {
-            type: DataTypes.DATE, // includes time, but we might just care about date part logic
-            allowNull: false,
-            field: 'menu_date'
-        },
         description: {
             type: DataTypes.TEXT,
             allowNull: true,
+        },
+        portionSize: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 1,
+            field: 'portion_size'
         },
         createdBy: {
             type: DataTypes.UUID,
             allowNull: false,
             field: 'created_by'
         },
-        portionCount: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-            defaultValue: 1,
-            field: 'portion_count'
-        },
     },
     {
         sequelize,
-        tableName: 'menus',
+        tableName: 'recipes',
         timestamps: true,
     }
 );
 
-export default Menu;
+export default Recipe;

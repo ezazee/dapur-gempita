@@ -49,6 +49,7 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             name: m.name,
             description: m.description,
             menuDate: m.menuDate.toISOString(),
+            portionCount: m.portionCount,
             ingredients: m.ingredients.map((i: any) => ({
                 id: i.id,
                 name: i.name,
@@ -63,7 +64,7 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
     }
 }
 
-export async function createMenu(data: { name: string; description: string; menuDate: Date; ingredients: { name: string; qty: number; unit: string }[] }) {
+export async function createMenu(data: { name: string; description: string; menuDate: Date; portionCount: number; ingredients: { name: string; qty: number; gramasi?: number; unit: string }[] }) {
     const session = await getSession();
     if (!session) return { error: 'Unauthorized' };
 
@@ -77,6 +78,7 @@ export async function createMenu(data: { name: string; description: string; menu
             name: data.name,
             description: data.description,
             menuDate: data.menuDate,
+            portionCount: data.portionCount || 1,
             createdBy: session.id
         });
 
@@ -102,6 +104,8 @@ export async function createMenu(data: { name: string; description: string; menu
                 }
 
                 // Link to Menu
+                // Note: We currently don't store gramasi explicitly in MenuIngredient (only qtyNeeded which is Total)
+                // But the UI reverse calculates it from Total / PortionCount.
                 await MenuIngredient.create({
                     menuId: menu.id,
                     ingredientId: ingredient.id,
@@ -150,7 +154,7 @@ export async function searchIngredients(query: string) {
     }
 }
 
-export async function updateMenu(id: string, data: { name: string; description: string; menuDate: Date; ingredients: { name: string; qty: number; unit: string }[] }) {
+export async function updateMenu(id: string, data: { name: string; description: string; menuDate: Date; portionCount: number; ingredients: { name: string; qty: number; gramasi?: number; unit: string }[] }) {
     const session = await getSession();
     if (!session || !['AHLI_GIZI', 'SUPER_ADMIN', 'CHEF'].includes(session.role)) {
         return { error: 'Permission denied' };
@@ -164,6 +168,7 @@ export async function updateMenu(id: string, data: { name: string; description: 
             name: data.name,
             description: data.description,
             menuDate: data.menuDate,
+            portionCount: data.portionCount || 1,
         });
 
         // Replace ingredients: Destroy old links, create new ones
