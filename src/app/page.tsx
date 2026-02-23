@@ -74,9 +74,9 @@ export default function Index() {
         if (!loading) {
             if (role === 'AHLI_GIZI') {
                 router.replace('/menus');
-            } else if (role === 'PEMBELI') {
+            } else if (role === 'KEUANGAN') {
                 router.replace('/purchases');
-            } else if (role === 'PENERIMA') {
+            } else if (role === 'ASLAP') {
                 router.replace('/receipts');
             } else if (role === 'CHEF') {
                 router.replace('/productions');

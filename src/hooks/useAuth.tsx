@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { getSession, login as serverLogin, logout as serverLogout } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
 
-export type AppRole = 'SUPER_ADMIN' | 'ADMIN' | 'AHLI_GIZI' | 'PEMBELI' | 'PENERIMA' | 'CHEF' | 'KEPALA_DAPUR';
+export type AppRole = 'SUPER_ADMIN' | 'ADMIN' | 'AHLI_GIZI' | 'KEUANGAN' | 'ASLAP' | 'CHEF' | 'KEPALA_DAPUR';
 
 interface User {
   id: string;
@@ -41,13 +41,13 @@ const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
     'menu.create', 'menu.read', 'menu.update', 'menu.delete',
     'ingredient.create', 'ingredient.read', 'ingredient.update',
   ],
-  PEMBELI: [
+  KEUANGAN: [
     'purchase.create', 'purchase.read', 'purchase.update',
     'ingredient.read',
     'menu.read',
     'upload.photo',
   ],
-  PENERIMA: [
+  ASLAP: [
     'receipt.create', 'receipt.read', 'receipt.validate',
     'purchase.read',
     'ingredient.read',

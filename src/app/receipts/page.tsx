@@ -60,7 +60,7 @@ export default function ReceiptsPage() {
     };
 
     return (
-        <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'PENERIMA']}>
+        <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'ASLAP']}>
             <DashboardLayout
                 title="Penerimaan Barang"
                 description="Validasi barang masuk dari pembelian untuk menambah stok."

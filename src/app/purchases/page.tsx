@@ -30,7 +30,7 @@ export default function PurchasesPage() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState<any>(null); // For detail dialog
 
-    const canCreate = ['PEMBELI', 'SUPER_ADMIN'].includes(role || '');
+    const canCreate = ['KEUANGAN', 'SUPER_ADMIN'].includes(role || '');
 
     useEffect(() => {
         fetchPurchases();
@@ -76,7 +76,7 @@ export default function PurchasesPage() {
     };
 
     return (
-        <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'PEMBELI']}>
+        <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'KEUANGAN']}>
             <DashboardLayout
                 title="Daftar Pembelian"
                 description="Riwayat rencana belanja dan pembelian bahan baku."

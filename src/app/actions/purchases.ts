@@ -46,8 +46,8 @@ export async function createPurchase(data: { purchaseDate: Date; note: string; i
     const session = await getSession();
     if (!session) return { error: 'Unauthorized' };
 
-    // PEMBELI or ADMIN
-    if (!['PEMBELI', 'SUPER_ADMIN'].includes(session.role)) {
+    // KEUANGAN or ADMIN
+    if (!['KEUANGAN', 'SUPER_ADMIN'].includes(session.role)) {
         return { error: 'Permission denied' };
     }
 
@@ -83,7 +83,7 @@ export async function editPurchase(id: string, data: { note: string; items: { in
     const session = await getSession();
     if (!session) return { error: 'Unauthorized' };
 
-    if (!['PEMBELI', 'SUPER_ADMIN'].includes(session.role)) {
+    if (!['KEUANGAN', 'SUPER_ADMIN'].includes(session.role)) {
         return { error: 'Permission denied' };
     }
 

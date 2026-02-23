@@ -2,22 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChefHat, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, Users, Check } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, Users, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login } from "@/app/actions/auth";
+import Image from "next/image";
 
 // Demo accounts untuk testing
 const DEMO_ACCOUNTS = [
-    { role: "SUPER_ADMIN", email: "admin@dapur.id", password: "admin123", name: "Admin Utama" },
-    { role: "AHLI_GIZI", email: "gizi@dapur.id", password: "gizi1234", name: "Ahli Gizi" },
-    { role: "PEMBELI", email: "pembeli@dapur.id", password: "pembeli1", name: "Pembeli" },
-    { role: "PENERIMA", email: "penerima@dapur.id", password: "penerima", name: "Penerima Barang" },
-    { role: "CHEF", email: "chef@dapur.id", password: "chef1234", name: "Chef Dapur" },
-    { role: "KEPALA_DAPUR", email: "kepala@dapur.id", password: "kepala12", name: "Kepala Dapur" },
+    { role: "SUPER_ADMIN", email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
+    { role: "AHLI_GIZI", email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
+    { role: "KEUANGAN", email: "keuangan@gempita.id", password: "pembeli1", name: "Keuangan" },
+    { role: "ASLAP", email: "aslap@gempita.id", password: "penerima", name: "Asisten Lapangan" },
+    { role: "CHEF", email: "chef@gempita.id", password: "chef1234", name: "Chef Dapur" },
+    { role: "KEPALA_DAPUR", email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
 ];
 
 export default function AuthPage() {
@@ -49,9 +50,9 @@ export default function AuthPage() {
                     redirectPath = '/';
                 } else if (role === 'CHEF') {
                     redirectPath = '/receipts';
-                } else if (role === 'PEMBELI') {
+                } else if (role === 'KEUANGAN') {
                     redirectPath = '/purchases';
-                } else if (role === 'PENERIMA') {
+                } else if (role === 'ASLAP') {
                     redirectPath = '/receipts';
                 } else if (role === 'AHLI_GIZI') {
                     redirectPath = '/menus';
@@ -97,15 +98,21 @@ export default function AuthPage() {
             <Card className="w-full max-w-md relative animate-fade-in z-10">
                 <CardHeader className="text-center pb-2">
                     <div className="flex justify-center mb-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-lg">
-                            <ChefHat className="h-8 w-8 text-primary-foreground" />
+                        <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-transparent">
+                            <Image
+                                src="/Logo.png"
+                                alt="Logo Gempita"
+                                width={80}
+                                height={80}
+                                className="object-contain"
+                            />
                         </div>
                     </div>
-                    <CardTitle className="text-2xl font-bold">
-                        Dapur<span className="text-accent">Stok</span>
+                    <CardTitle className="text-3xl font-bold">
+                        Dapur <span className="text-primary">Gempita</span>
                     </CardTitle>
                     <CardDescription>
-                        Sistem Monitoring Stok Dapur Internal (Neon DB)
+                        Sistem Manajemen Dapur Gempita Internal
                     </CardDescription>
                 </CardHeader>
 

@@ -149,6 +149,6 @@ export interface Profile {
 export interface UserRole {
   id: string;
   user_id: string;
-  role: 'SUPER_ADMIN' | 'AHLI_GIZI' | 'PEMBELI' | 'PENERIMA' | 'CHEF' | 'KEPALA_DAPUR';
+  role: 'SUPER_ADMIN' | 'AHLI_GIZI' | 'KEUANGAN' | 'ASLAP' | 'CHEF' | 'KEPALA_DAPUR';
   created_at: string;
 }

@@ -13,6 +13,7 @@ import { navItems } from "./navItems";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import Image from "next/image";
 
 export function MobileSidebar() {
     const [open, setOpen] = useState(false);
@@ -39,11 +40,17 @@ export function MobileSidebar() {
                     {/* Header */}
                     <div className="flex h-16 items-center px-6 border-b border-sidebar-border">
                         <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-                                <ChefHat className="h-5 w-5 text-sidebar-primary-foreground" />
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent overflow-hidden">
+                                <Image
+                                    src="/Logo.png"
+                                    alt="Logo Gempita"
+                                    width={40}
+                                    height={40}
+                                    className="object-contain"
+                                />
                             </div>
-                            <span className="font-semibold text-sidebar-foreground">
-                                Dapur<span className="text-sidebar-primary">Stok</span>
+                            <span className="font-bold text-sidebar-foreground">
+                                Dapur <span className="text-sidebar-primary">Gempita</span>
                             </span>
                         </div>
                     </div>

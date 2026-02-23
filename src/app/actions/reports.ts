@@ -30,7 +30,7 @@ export async function getDailyReport(date: string) {
             ]
         });
 
-        // Table 2: Fetch Purchases (Pembeli)
+        // Table 2: Fetch Purchases (Keuangan)
         const purchases = await Purchase.findAll({
             where: {
                 purchaseDate: {
@@ -48,7 +48,7 @@ export async function getDailyReport(date: string) {
             ]
         });
 
-        // Table 3: Fetch Receipts (Penerima)
+        // Table 3: Fetch Receipts (Aslap)
         const receipts = await Receipt.findAll({
             where: {
                 receivedAt: {
@@ -96,10 +96,10 @@ export async function getDailyReport(date: string) {
             }))
         }));
 
-        // Format: Table 2 - Pembeli (Purchase Items with memo & photos)
+        // Format: Table 2 - Keuangan (Purchase Items with memo & photos)
         const purchaseData = purchases.map((p: any) => ({
             purchaseId: p.id.substring(0, 8),
-            pembeli: p.creator?.name || 'Unknown',
+            keuangan: p.creator?.name || 'Unknown',
             status: p.status,
             items: (p.items || []).map((i: any) => ({
                 name: i.ingredient?.name || 'Unknown',
@@ -110,7 +110,7 @@ export async function getDailyReport(date: string) {
             }))
         }));
 
-        // Format: Table 3 - Penerima (Receipt Items with weights & photos)
+        // Format: Table 3 - Aslap (Receipt Items with weights & photos)
         const receiptData = receipts.map((r: any) => ({
             receiptId: r.id.substring(0, 8),
             receiver: r.receiver?.name || 'Unknown',
@@ -141,8 +141,8 @@ export async function getDailyReport(date: string) {
             data: {
                 date: targetDate.toISOString(),
                 ahliGizi: menuData,
-                pembeli: purchaseData,
-                penerima: receiptData,
+                keuangan: purchaseData,
+                aslap: receiptData,
                 chef: productionData,
                 summary: {
                     totalMenus: menus.length,

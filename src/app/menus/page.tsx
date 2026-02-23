@@ -135,7 +135,7 @@ export default function MenusPage() {
     );
 
     return (
-        <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'PEMBELI', 'PENERIMA', 'KEPALA_DAPUR']}>
+        <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'KEUANGAN', 'ASLAP', 'KEPALA_DAPUR']}>
             <DashboardLayout
                 title="Jadwal Masak Harian"
                 description="Pusat pengelolaan jadwal masak dan riwayat."
@@ -288,7 +288,7 @@ export default function MenusPage() {
                                         <TableHead>Nama Menu</TableHead>
                                         <TableHead className="hidden md:table-cell">Deskripsi</TableHead>
                                         <TableHead className="text-center">Bahan</TableHead>
-                                        <TableHead className="text-right">Aksi</TableHead>
+                                        <TableHead className="text-right w-[200px]">Aksi</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -317,11 +317,16 @@ export default function MenusPage() {
                                                         {menu.ingredients.length} Item
                                                     </span>
                                                 </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="default" size="sm" onClick={() => handleDuplicate(menu)}>
-                                                        <Copy className="h-3 w-3 mr-2" />
-                                                        Pakai Lagi
+                                                <TableCell className="text-right space-x-1">
+                                                    <Button variant="ghost" size="icon" onClick={() => handleViewDetail(menu)}>
+                                                        <Eye className="h-4 w-4" />
                                                     </Button>
+                                                    {canCreate && (
+                                                        <Button variant="default" size="sm" onClick={() => handleDuplicate(menu)}>
+                                                            <Copy className="h-3 w-3 mr-2" />
+                                                            Pakai Lagi
+                                                        </Button>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))

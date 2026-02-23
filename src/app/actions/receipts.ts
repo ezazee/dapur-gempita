@@ -95,7 +95,7 @@ interface ReceiptData {
 
 export async function createReceipt(data: ReceiptData) {
     const session = await getSession();
-    if (!session || !['PENERIMA', 'SUPER_ADMIN'].includes(session.role)) {
+    if (!session || !['ASLAP', 'SUPER_ADMIN'].includes(session.role)) {
         return { error: 'Permission denied' };
     }
 

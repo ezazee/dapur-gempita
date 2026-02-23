@@ -26,8 +26,8 @@ async function main() {
         const roles = await Role.bulkCreate([
             { id: 1, name: 'SUPER_ADMIN' },
             { id: 2, name: 'AHLI_GIZI' },
-            { id: 3, name: 'PEMBELI' },
-            { id: 4, name: 'PENERIMA' },
+            { id: 3, name: 'KEUANGAN' },
+            { id: 4, name: 'ASLAP' },
             { id: 5, name: 'CHEF' },
             { id: 6, name: 'KEPALA_DAPUR' }
         ]);
@@ -37,9 +37,11 @@ async function main() {
         const adminId = uuidv4();
         const giziId = uuidv4();
         await User.bulkCreate([
-            { id: adminId, roleId: 1, email: "admin@dapur.id", password: "admin123", name: "Admin Utama" },
-            { id: giziId, roleId: 2, email: "gizi@dapur.id", password: "gizi1234", name: "Ahli Gizi" },
-            { id: uuidv4(), roleId: 5, email: "chef@dapur.id", password: "chef1234", name: "Chef Dapur" },
+            { id: adminId, roleId: 1, email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
+            { id: giziId, roleId: 2, email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
+            { id: uuidv4(), roleId: 3, email: "keuangan@gempita.id", password: "pembeli1", name: "Bagian Keuangan" },
+            { id: uuidv4(), roleId: 4, email: "aslap@gempita.id", password: "penerima", name: "Aslap (Asisten Lapangan)" },
+            { id: uuidv4(), roleId: 5, email: "chef@gempita.id", password: "chef1234", name: "Chef Dapur" },
         ]);
 
         // 3. Seed Ingredients

@@ -95,10 +95,10 @@ export default function ReportsPage() {
             XLSX.utils.book_append_sheet(wb, ws1, 'Ahli Gizi');
         }
 
-        // Sheet 2 - Pembeli
-        if (reportData.pembeli.length > 0) {
+        // Sheet 2 - Keuangan
+        if (reportData.keuangan.length > 0) {
             const rows: any[] = [['Nama Bahan', 'Qty', 'Satuan', 'Catatan/Memo', 'Foto']];
-            reportData.pembeli.forEach((p: any) => {
+            reportData.keuangan.forEach((p: any) => {
                 p.items.forEach((item: any) => {
                     rows.push([
                         item.name,
@@ -110,13 +110,13 @@ export default function ReportsPage() {
                 });
             });
             const ws2 = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws2, 'Pembeli');
+            XLSX.utils.book_append_sheet(wb, ws2, 'Keuangan');
         }
 
-        // Sheet 3 - Penerima
-        if (reportData.penerima.length > 0) {
+        // Sheet 3 - Aslap
+        if (reportData.aslap.length > 0) {
             const rows: any[] = [['Nama Bahan', 'Berat Kotor', 'Berat Bersih', 'Satuan', 'Foto']];
-            reportData.penerima.forEach((r: any) => {
+            reportData.aslap.forEach((r: any) => {
                 r.items.forEach((item: any) => {
                     rows.push([
                         item.name,
@@ -128,7 +128,7 @@ export default function ReportsPage() {
                 });
             });
             const ws3 = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws3, 'Penerima');
+            XLSX.utils.book_append_sheet(wb, ws3, 'Aslap');
         }
 
         // Sheet 4 - Chef
@@ -219,17 +219,17 @@ export default function ReportsPage() {
                 yPos = (doc as any).lastAutoTable.finalY + 10;
             }
 
-            // Table 2 - Pembeli
+            // Table 2 - Keuangan
             if (yPos > 250) { doc.addPage(); yPos = 20; }
-            if (reportData.pembeli.length > 0) {
+            if (reportData.keuangan.length > 0) {
                 doc.setFontSize(14);
-                doc.text('2. Pembeli - Pengadaan Bahan', 14, yPos);
+                doc.text('2. Keuangan - Pengadaan Bahan', 14, yPos);
                 yPos += 5;
 
                 const rows: any[] = [];
                 const photoCells: { row: number, col: number, url: string }[] = [];
 
-                reportData.pembeli.forEach((p: any) => {
+                reportData.keuangan.forEach((p: any) => {
                     p.items.forEach((item: any) => {
                         if (item.photoUrl && imageCache[item.photoUrl]) {
                             photoCells.push({ row: rows.length, col: 3, url: item.photoUrl });
@@ -267,17 +267,17 @@ export default function ReportsPage() {
                 yPos = (doc as any).lastAutoTable.finalY + 10;
             }
 
-            // Table 3 - Penerima
+            // Table 3 - Aslap
             if (yPos > 250) { doc.addPage(); yPos = 20; }
-            if (reportData.penerima.length > 0) {
+            if (reportData.aslap.length > 0) {
                 doc.setFontSize(14);
-                doc.text('3. Penerima - Verifikasi Berat', 14, yPos);
+                doc.text('3. Aslap - Verifikasi Berat', 14, yPos);
                 yPos += 5;
 
                 const rows: any[] = [];
                 const photoCells: { row: number, col: number, url: string }[] = [];
 
-                reportData.penerima.forEach((r: any) => {
+                reportData.aslap.forEach((r: any) => {
                     r.items.forEach((item: any) => {
                         if (item.photoUrl && imageCache[item.photoUrl]) {
                             photoCells.push({ row: rows.length, col: 3, url: item.photoUrl });
@@ -378,7 +378,7 @@ export default function ReportsPage() {
         <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'KEPALA_DAPUR']}>
             <DashboardLayout
                 title="Laporan Harian"
-                description="Laporan harian lengkap dari semua role: Ahli Gizi, Pembeli, Penerima, Chef."
+                description="Laporan harian lengkap dari semua role: Ahli Gizi, Keuangan, Aslap, Chef."
             >
                 <Card>
                     <CardHeader>
@@ -460,9 +460,9 @@ export default function ReportsPage() {
                                     </div>
                                 </div>
 
-                                {/* Table 2: Pembeli */}
+                                {/* Table 2: Keuangan */}
                                 <div className="pt-4 border-t">
-                                    <h3 className="text-lg font-semibold mb-3">2. Pembeli - Pengadaan Bahan</h3>
+                                    <h3 className="text-lg font-semibold mb-3">2. Keuangan - Pengadaan Bahan</h3>
                                     <div className="border rounded-md overflow-x-auto">
                                         <Table>
                                             <TableHeader>
@@ -474,14 +474,14 @@ export default function ReportsPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {reportData.pembeli.length === 0 ? (
+                                                {reportData.keuangan.length === 0 ? (
                                                     <TableRow>
                                                         <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                                                             Tidak ada data pengadaan
                                                         </TableCell>
                                                     </TableRow>
                                                 ) : (
-                                                    reportData.pembeli.map((p: any, pIdx: number) =>
+                                                    reportData.keuangan.map((p: any, pIdx: number) =>
                                                         p.items.map((item: any, iIdx: number) => (
                                                             <TableRow key={`purchase-${pIdx}-item-${iIdx}`}>
                                                                 <TableCell className="font-medium">{item.name}</TableCell>
@@ -511,9 +511,9 @@ export default function ReportsPage() {
                                     </div>
                                 </div>
 
-                                {/* Table 3: Penerima */}
+                                {/* Table 3: Aslap */}
                                 <div className="pt-4 border-t">
-                                    <h3 className="text-lg font-semibold mb-3">3. Penerima - Verifikasi Berat</h3>
+                                    <h3 className="text-lg font-semibold mb-3">3. Aslap - Verifikasi Berat</h3>
                                     <div className="border rounded-md overflow-x-auto">
                                         <Table>
                                             <TableHeader>
@@ -525,14 +525,14 @@ export default function ReportsPage() {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {reportData.penerima.length === 0 ? (
+                                                {reportData.aslap.length === 0 ? (
                                                     <TableRow>
                                                         <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                                                             Tidak ada data penerimaan
                                                         </TableCell>
                                                     </TableRow>
                                                 ) : (
-                                                    reportData.penerima.map((r: any, rIdx: number) =>
+                                                    reportData.aslap.map((r: any, rIdx: number) =>
                                                         r.items.map((item: any, iIdx: number) => (
                                                             <TableRow key={`receipt-${rIdx}-item-${iIdx}`}>
                                                                 <TableCell className="font-medium">{item.name}</TableCell>

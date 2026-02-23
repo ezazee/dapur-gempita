@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Calendar, Utensils, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MenuDetailDialogProps {
     open: boolean;
@@ -59,6 +60,7 @@ export function MenuDetailDialog({ open, onOpenChange, menu }: MenuDetailDialogP
                                         <th className="px-4 py-2 font-medium">Bahan</th>
                                         <th className="px-4 py-2 font-medium text-right">Jumlah</th>
                                         <th className="px-4 py-2 font-medium text-center">Satuan</th>
+                                        <th className="px-4 py-2 font-medium">Status / Catatan</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
@@ -67,11 +69,33 @@ export function MenuDetailDialog({ open, onOpenChange, menu }: MenuDetailDialogP
                                             <td className="px-4 py-2">{ing.name}</td>
                                             <td className="px-4 py-2 text-right font-medium">{ing.qtyNeeded}</td>
                                             <td className="px-4 py-2 text-center text-muted-foreground">{ing.unit}</td>
+                                            <td className="px-4 py-2">
+                                                <div className="space-y-1">
+                                                    {ing.evaluationStatus && (
+                                                        <Badge variant="outline" className={cn(
+                                                            "text-[10px] uppercase font-bold",
+                                                            ing.evaluationStatus === 'PAS' && "text-green-600 border-green-200 bg-green-50",
+                                                            ing.evaluationStatus === 'KURANG' && "text-red-600 border-red-200 bg-red-50",
+                                                            ing.evaluationStatus === 'BERLEBIH' && "text-orange-600 border-orange-200 bg-orange-50",
+                                                        )}>
+                                                            {ing.evaluationStatus}
+                                                        </Badge>
+                                                    )}
+                                                    {ing.evaluationNote && (
+                                                        <p className="text-[10px] text-muted-foreground leading-tight italic">
+                                                            "{ing.evaluationNote}"
+                                                        </p>
+                                                    )}
+                                                    {!ing.evaluationStatus && !ing.evaluationNote && (
+                                                        <span className="text-[10px] text-muted-foreground italic">-</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                     {menu.ingredients.length === 0 && (
                                         <tr>
-                                            <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground italic">
+                                            <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground italic">
                                                 Tidak ada bahan yang tercatat.
                                             </td>
                                         </tr>

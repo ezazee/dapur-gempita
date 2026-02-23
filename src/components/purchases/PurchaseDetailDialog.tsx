@@ -182,7 +182,7 @@ export function PurchaseDetailDialog({ open, onOpenChange, purchase, onRefresh }
 
                 <DialogFooter className="flex justify-between sm:justify-between">
                     <div className="flex gap-2">
-                        {purchase.status === 'waiting' && role !== 'PENERIMA' && (
+                        {purchase.status === 'waiting' && role !== 'ASLAP' && (
                             <Button variant="outline" onClick={() => setIsEditOpen(true)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit / Update Realisasi

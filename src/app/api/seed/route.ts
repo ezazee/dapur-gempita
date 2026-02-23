@@ -15,8 +15,8 @@ export async function GET() {
         const rolesData = [
             { id: 1, name: 'SUPER_ADMIN' },
             { id: 2, name: 'AHLI_GIZI' },
-            { id: 3, name: 'PEMBELI' },
-            { id: 4, name: 'PENERIMA' },
+            { id: 3, name: 'KEUANGAN' },
+            { id: 4, name: 'ASLAP' },
             { id: 5, name: 'CHEF' },
             { id: 6, name: 'KEPALA_DAPUR' }
         ];
@@ -28,12 +28,12 @@ export async function GET() {
         const chefId = uuidv4();
 
         const demoUsers = [
-            { id: adminId, roleId: 1, email: "admin@dapur.id", password: "admin123", name: "Admin Utama" },
-            { id: giziId, roleId: 2, email: "gizi@dapur.id", password: "gizi1234", name: "Bu Ahli Gizi" },
-            { roleId: 3, email: "pembeli@dapur.id", password: "pembeli1", name: "Staff Pembeli" },
-            { roleId: 4, email: "penerima@dapur.id", password: "penerima", name: "Staff Gudang" },
-            { id: chefId, roleId: 5, email: "chef@dapur.id", password: "chef1234", name: "Chef Juna" },
-            { roleId: 6, email: "kepala@dapur.id", password: "kepala12", name: "Kepala Dapur" },
+            { id: adminId, roleId: 1, email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
+            { id: giziId, roleId: 2, email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
+            { roleId: 3, email: "keuangan@gempita.id", password: "pembeli1", name: "Keuangan" },
+            { roleId: 4, email: "aslap@gempita.id", password: "aslap123", name: "Aslap (Asisten Lapangan)" },
+            { id: chefId, roleId: 5, email: "chef@gempita.id", password: "chef1234", name: "Chef Dapur" },
+            { roleId: 6, email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
         ];
         await User.bulkCreate(demoUsers as any);
 

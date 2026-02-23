@@ -27,8 +27,8 @@ export const navItems: NavItem[] = [
     { label: "Evaluasi Menu", icon: StickyNote, href: "/evaluations", roles: ['SUPER_ADMIN', 'AHLI_GIZI'] },
     { label: "Kamus Resep (Standar)", icon: ChefHat, href: "/recipes", roles: ['SUPER_ADMIN', 'AHLI_GIZI', 'KEPALA_DAPUR'] },
     // Notes merged into Menus
-    { label: "Pembelian", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
-    { label: "Penerimaan", icon: ClipboardCheck, href: "/receipts", permission: "receipt.read" },
+    { label: "Keuangan", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
+    { label: "Aslap", icon: ClipboardCheck, href: "/receipts", permission: "receipt.read" },
     { label: "Produksi", icon: ChefHat, href: "/productions", permission: "production.read" },
     { label: "Pergerakan Stok", icon: TrendingUp, href: "/stock-movements", permission: "stock.read", excludedRoles: ['CHEF', 'KEPALA_DAPUR'] },
     { label: "Laporan", icon: FileBarChart, href: "/reports", permission: "report.read", excludedRoles: ['CHEF'] },

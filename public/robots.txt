@@ -1,13 +1,9 @@
 User-agent: Googlebot
 Allow: /
 
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
+# Deny all search engine crawlers as this is an internal application
+User-agent: *
+Disallow: /
 Allow: /
 
 User-agent: *

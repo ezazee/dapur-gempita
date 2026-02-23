@@ -9,7 +9,15 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
     title: 'Dapur Gempita',
-    description: 'Application for Dapur Gempita',
+    description: 'Aplikasi Manajemen Stok & Evaluasi Dapur Gempita',
+    icons: {
+        icon: '/favicon_io/favicon.ico',
+        apple: '/favicon_io/apple-touch-icon.png',
+    },
+    robots: {
+        index: false,
+        follow: false,
+    },
 };
 
 export default function RootLayout({

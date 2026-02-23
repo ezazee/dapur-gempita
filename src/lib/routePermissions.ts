@@ -2,10 +2,10 @@ import { AppRole } from '@/hooks/useAuth';
 
 // Route to allowed roles mapping
 export const ROUTE_PERMISSIONS: Record<string, AppRole[]> = {
-    '/': ['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'PEMBELI', 'PENERIMA', 'KEPALA_DAPUR'], // CHEF excluded from dashboard
-    '/menus': ['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'PEMBELI', 'PENERIMA', 'KEPALA_DAPUR'],
-    '/purchases': ['SUPER_ADMIN', 'ADMIN', 'PEMBELI'],
-    '/receipts': ['SUPER_ADMIN', 'ADMIN', 'PENERIMA'],
+    '/': ['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'KEUANGAN', 'ASLAP', 'KEPALA_DAPUR'], // CHEF excluded from dashboard
+    '/menus': ['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'KEUANGAN', 'ASLAP', 'KEPALA_DAPUR'],
+    '/purchases': ['SUPER_ADMIN', 'ADMIN', 'KEUANGAN'],
+    '/receipts': ['SUPER_ADMIN', 'ADMIN', 'ASLAP'],
     '/productions': ['SUPER_ADMIN', 'ADMIN', 'CHEF'],
     '/stock-movements': ['SUPER_ADMIN', 'ADMIN'],
     '/reports': ['SUPER_ADMIN', 'ADMIN', 'KEPALA_DAPUR'],
