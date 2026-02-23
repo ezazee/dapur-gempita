@@ -52,56 +52,218 @@ export async function GET() {
             { name: 'Minyak Goreng', unit: 'liter', minimumStock: 20, currentStock: 30 },
         ]);
 
-        // --- 4. SCENARIO: RECIPE (SOP / KAMUS RESEP) ---
-        // "Nasi Goreng Spesial (Standar)" - Gramasi Baku
-        const recipeId = uuidv4();
-        await Recipe.create({
-            id: recipeId,
-            name: "Nasi Goreng Spesial (SOP)",
-            description: "Resep standar Ahli Gizi. Rasa seimbang.",
-            portionSize: 1, // Base per 1 porsi
-            createdBy: giziId
-        });
+        // --- 4. SCENARIO: RECIPES (KAMUS RESEP) ---
+        // Create standard recipes (SOP) that match the kinds of meals served
 
-        // Bahan Baku Resep (Per Porsi)
-        await RecipeIngredient.bulkCreate([
-            { recipeId, ingredientId: berasId, qtyPerPortion: 0.15 }, // 150g beras
-            { recipeId, ingredientId: telurId, qtyPerPortion: 1 },    // 1 butir telur
-            { recipeId, ingredientId: kecapId, qtyPerPortion: 0.02 }, // 20ml kecap
-            { recipeId, ingredientId: ayamId, qtyPerPortion: 0.1 },   // 100g ayam
-        ]);
+        const standardRecipes = [
+            {
+                name: "Nasi Goreng Spesial",
+                desc: "Resep standar Ahli Gizi. Rasa seimbang.",
+                cal: 450.5, carbs: 65.2, protein: 18.5, fat: 12.0,
+                ings: [
+                    { id: berasId, qty: 0.15 },
+                    { id: telurId, qty: 1 },
+                    { id: kecapId, qty: 0.02 },
+                    { id: ayamId, qty: 0.1 },
+                ]
+            },
+            {
+                name: "Sop Ayam Kampung",
+                desc: "Kuah bening, kaya gizi.",
+                cal: 320.0, carbs: 10.5, protein: 25.0, fat: 15.0,
+                ings: [
+                    { id: ayamId, qty: 0.15 },
+                    { id: telurId, qty: 0.5 },
+                ]
+            },
+            {
+                name: "Ayam Bakar Madu",
+                desc: "Manis gurih, dibakar empuk.",
+                cal: 400.0, carbs: 20.0, protein: 30.0, fat: 18.0,
+                ings: [
+                    { id: ayamId, qty: 0.2 },
+                    { id: kecapId, qty: 0.03 },
+                ]
+            },
+            {
+                name: "Tumis Kangkung",
+                desc: "Sayuran segar dengan sedikit udang rebon.",
+                cal: 150.0, carbs: 15.0, protein: 5.0, fat: 8.0,
+                ings: [
+                    { id: telurId, qty: 0.5 }, // maybe puyuh eggs?
+                    { id: kecapId, qty: 0.01 },
+                ]
+            },
+            {
+                name: "Ayam Kecap Pedas",
+                desc: "Ayam potong dadu bumbu kecap manis pedas.",
+                cal: 380.0, carbs: 25.0, protein: 28.0, fat: 16.0,
+                ings: [
+                    { id: ayamId, qty: 0.18 },
+                    { id: kecapId, qty: 0.05 },
+                ]
+            },
+            {
+                name: "Nasi Uduk",
+                desc: "Gurih bersantan dengan lauk telur iris.",
+                cal: 480.0, carbs: 70.0, protein: 12.0, fat: 14.0,
+                ings: [
+                    { id: berasId, qty: 0.15 },
+                    { id: telurId, qty: 1 },
+                ]
+            },
+            {
+                name: "Telur Balado",
+                desc: "Telur rebus bumbu merah pedas.",
+                cal: 250.0, carbs: 8.0, protein: 12.0, fat: 16.0,
+                ings: [
+                    { id: telurId, qty: 2 },
+                ]
+            },
+            {
+                name: "Soto Ayam Bening",
+                desc: "Kuah soto ringan tanpa santan.",
+                cal: 300.0, carbs: 15.0, protein: 22.0, fat: 10.0,
+                ings: [
+                    { id: ayamId, qty: 0.12 },
+                    { id: telurId, qty: 0.5 },
+                ]
+            },
+            {
+                name: "Mie Goreng Jawa",
+                desc: "Mie telur dengan sayuran dan suwiran ayam.",
+                cal: 420.0, carbs: 60.0, protein: 15.0, fat: 13.0,
+                ings: [
+                    { id: telurId, qty: 1 },
+                    { id: ayamId, qty: 0.08 },
+                    { id: kecapId, qty: 0.03 },
+                ]
+            },
+            {
+                name: "Opor Ayam",
+                desc: "Ayam kuah santan kuning kental.",
+                cal: 450.0, carbs: 12.0, protein: 26.0, fat: 28.0,
+                ings: [
+                    { id: ayamId, qty: 0.2 },
+                    { id: telurId, qty: 1 },
+                ]
+            }
+        ];
 
-        // --- 5. SCENARIO: HISTORY (RIWAYAT MASAK KEMARIN) ---
-        // "Nasi Goreng (Asin/Pedas)" - Modifikasi lapangan
-        const menuId = uuidv4();
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        for (const recipeData of standardRecipes) {
+            const recipeId = uuidv4();
+            await Recipe.create({
+                id: recipeId,
+                name: recipeData.name,
+                description: recipeData.desc,
+                portionSize: 1, // Base per 1 porsi
+                calories: recipeData.cal,
+                carbs: recipeData.carbs,
+                protein: recipeData.protein,
+                fat: recipeData.fat,
+                createdBy: giziId
+            });
 
+            const recipeIngredients = recipeData.ings.map(ing => ({
+                recipeId,
+                ingredientId: ing.id,
+                qtyPerPortion: ing.qty
+            }));
+
+            await RecipeIngredient.bulkCreate(recipeIngredients);
+        }
+
+        // --- 5. SCENARIO: HISTORY (10 RIWAYAT MASAK) ---
+        // We will create 10 menus going backwards from Feb 19, 2026.
+        // To test statistics, we'll use repeating menu names like "Nasi Goreng Spesial" and "Sop Ayam".
+
+        const menuNames = [
+            "Nasi Goreng Spesial", // Will use this multiple times
+            "Sop Ayam Kampung",
+            "Nasi Goreng Spesial",
+            "Ayam Bakar Madu",
+            "Nasi Goreng Spesial",
+            "Sop Ayam Kampung",
+            "Tumis Kangkung",
+            "Nasi Goreng Spesial",
+            "Ayam Bakar Madu",
+            "Nasi Goreng Spesial"
+        ];
+
+        let currentDate = new Date('2026-02-19T08:00:00');
+
+        for (let i = 0; i < 10; i++) {
+            const mId = uuidv4();
+            const name = menuNames[i];
+
+            await Menu.create({
+                id: mId,
+                name: name,
+                description: `Masakan harian untuk ${name}`,
+                menuDate: new Date(currentDate),
+                portionCount: 50 + Math.floor(Math.random() * 50), // 50-100 porsi
+                createdBy: chefId,
+                evaluatorId: i % 3 !== 0 ? giziId : undefined, // About 2/3 of them evaluated
+            });
+
+            // Random ingredients for this menu
+            const ingredientsToAdd = [
+                { ingredientId: berasId, qty: 10 + Math.random() * 5 },
+                { ingredientId: telurId, qty: 50 + Math.random() * 20 },
+                { ingredientId: kecapId, qty: 1 + Math.random() * 1 },
+                { ingredientId: ayamId, qty: 5 + Math.random() * 5 },
+            ];
+
+            const evalStatuses: ('PAS' | 'KURANG' | 'BERLEBIH')[] = ['PAS', 'PAS', 'KURANG', 'BERLEBIH', 'PAS'];
+
+            for (const ing of ingredientsToAdd) {
+                // If it's evaluated (evaluatorId is set), give it a random status
+                const isEvaluated = i % 3 !== 0;
+                let evStatus = undefined;
+                let evNote: string | undefined = undefined;
+
+                if (isEvaluated) {
+                    evStatus = evalStatuses[Math.floor(Math.random() * evalStatuses.length)];
+                    if (evStatus === 'KURANG') evNote = "Bahan ternyata kurang di lapangan";
+                    if (evStatus === 'BERLEBIH') evNote = "Ada sisa lumayan banyak";
+                }
+
+                await MenuIngredient.create({
+                    id: uuidv4(),
+                    menuId: mId,
+                    ingredientId: ing.ingredientId,
+                    qtyNeeded: Math.round(ing.qty * 10) / 10,
+                    evaluationStatus: evStatus as any,
+                    evaluationNote: evNote
+                });
+            }
+
+            // Go back 1-3 days for the next record
+            currentDate.setDate(currentDate.getDate() - (1 + Math.floor(Math.random() * 3)));
+        }
+
+        // Add 1 upcoming menu (Not evaluated yet) so we can click the "Statistik" and "Evaluasi" button for it
+        const upcomingMenuId = uuidv4();
         await Menu.create({
-            id: menuId,
-            name: "Nasi Goreng (Pesanan Partai)", // Nama beda dikit
-            description: "Modifikasi: Klien minta kecap dikurangi, ayam dibanyakin.",
-            menuDate: yesterday,
-            portionCount: 100, // Masak untuk 100 orang
-            createdBy: chefId
+            id: upcomingMenuId,
+            name: "Nasi Goreng Spesial", // Same name to trigger stats
+            description: "Persiapan masak untuk besok",
+            menuDate: new Date('2026-02-21T08:00:00'),
+            portionCount: 80,
+            createdBy: chefId,
+            evaluatorId: undefined
         });
-
-        // Bahan Baku Menu (Total Aktual yang dipakai)
-        // Kalau ikut SOP: Beras 15kg, Telur 100, Kecap 2L, Ayam 10kg
-        // Aktual lapangan:
         await MenuIngredient.bulkCreate([
-            { menuId, ingredientId: berasId, qtyNeeded: 15 },   // Sesuai standar (15kg)
-            { menuId, ingredientId: telurId, qtyNeeded: 100 },  // Sesuai standar (100 btr)
-            { menuId, ingredientId: kecapId, qtyNeeded: 1 },    // MODIFIKASI: Cuma pakai 1L (Kurang manis)
-            { menuId, ingredientId: ayamId, qtyNeeded: 12 },    // MODIFIKASI: Pakai 12kg (Lebih banyak daging)
+            { menuId: upcomingMenuId, ingredientId: berasId, qtyNeeded: 12 },
+            { menuId: upcomingMenuId, ingredientId: telurId, qtyNeeded: 80 },
+            { menuId: upcomingMenuId, ingredientId: kecapId, qtyNeeded: 1.5 },
+            { menuId: upcomingMenuId, ingredientId: ayamId, qtyNeeded: 8 },
         ]);
 
         return NextResponse.json({
             success: true,
-            message: 'Database purged and seeded with Education Scenario.',
+            message: 'Database purged and seeded with 10 historical menus with repeating names.',
             scenarios: {
-                recipe: "Nasi Goreng Spesial (SOP) - Check 'Kamus Resep'",
-                history: "Nasi Goreng (Pesanan Partai) - Check 'Riwayat'",
                 users: demoUsers.map(u => ({ email: u.email, role: u.roleId }))
             }
         });

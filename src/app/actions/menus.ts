@@ -37,7 +37,7 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['qtyNeeded'] }
+                    through: { attributes: ['qtyNeeded', 'gramasi', 'evaluationStatus', 'evaluationNote'] }
                 }
             ],
             order: [['menuDate', 'DESC']]
@@ -50,12 +50,18 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             description: m.description,
             menuDate: m.menuDate.toISOString(),
             portionCount: m.portionCount,
+            evaluation: m.evaluation,
+            rating: m.rating,
+            evaluatorId: m.evaluatorId,
             ingredients: m.ingredients.map((i: any) => ({
                 id: i.id,
                 name: i.name,
                 unit: i.unit,
                 // Access the join table attributes via the Model name (MenuIngredient)
-                qtyNeeded: (i as any).MenuIngredient?.qtyNeeded || 0
+                qtyNeeded: (i as any).MenuIngredient?.qtyNeeded || 0,
+                gramasi: (i as any).MenuIngredient?.gramasi || null,
+                evaluationStatus: (i as any).MenuIngredient?.evaluationStatus || null,
+                evaluationNote: (i as any).MenuIngredient?.evaluationNote || null,
             }))
         }));
     } catch (error) {
@@ -109,7 +115,8 @@ export async function createMenu(data: { name: string; description: string; menu
                 await MenuIngredient.create({
                     menuId: menu.id,
                     ingredientId: ingredient.id,
-                    qtyNeeded: item.qty
+                    qtyNeeded: item.qty,
+                    gramasi: item.gramasi
                 });
             }
         }
@@ -197,7 +204,8 @@ export async function updateMenu(id: string, data: { name: string; description: 
                 await MenuIngredient.create({
                     menuId: id,
                     ingredientId: ingredient.id,
-                    qtyNeeded: item.qty
+                    qtyNeeded: item.qty,
+                    gramasi: item.gramasi
                 });
             }
         }
@@ -255,5 +263,125 @@ export async function getMenuIngredientsForDate(date: Date) {
     } catch (error) {
         console.error('Error fetching menu ingredients:', error);
         return [];
+    }
+}
+
+export async function evaluateMenuIngredients(menuId: string, evaluations: { ingredientId: string; evaluationStatus: 'PAS' | 'KURANG' | 'BERLEBIH'; evaluationNote?: string }[]) {
+    const session = await getSession();
+    if (!session || !['AHLI_GIZI', 'SUPER_ADMIN'].includes(session.role)) {
+        return { error: 'Permission denied' };
+    }
+
+    try {
+        const menu = await Menu.findByPk(menuId);
+        if (!menu) return { error: 'Menu not found' };
+
+        // Process evaluations for each ingredient
+        for (const evalData of evaluations) {
+            const menuIngredient = await MenuIngredient.findOne({
+                where: {
+                    menuId: menuId,
+                    ingredientId: evalData.ingredientId
+                }
+            });
+
+            if (menuIngredient) {
+                await menuIngredient.update({
+                    evaluationStatus: evalData.evaluationStatus,
+                    evaluationNote: evalData.evaluationNote || undefined,
+                });
+            }
+        }
+
+        // We can still mark the menu itself as "evaluated" by setting the evaluatorId
+        await menu.update({
+            evaluatorId: session.id
+        });
+
+        revalidatePath('/evaluations');
+        revalidatePath('/menus');
+        return { success: true };
+    } catch (error) {
+        console.error('Error evaluating menu ingredients:', error);
+        return { error: 'Failed to evaluate ingredients' };
+    }
+}
+
+export async function getMenuEvaluationStats(menuName: string, currentMenuDate: string) {
+    const session = await getSession();
+    if (!session || !['AHLI_GIZI', 'SUPER_ADMIN'].includes(session.role)) {
+        return { error: 'Permission denied', status: 403 };
+    }
+
+    try {
+        // Find latest menu with same name, before the current menu date, that has been evaluated
+        const historyMenu = await Menu.findOne({
+            where: {
+                name: menuName,
+                menuDate: { [Op.lt]: new Date(currentMenuDate) },
+                evaluatorId: { [Op.ne]: null as any }
+            },
+            order: [['menuDate', 'DESC']],
+            include: [{
+                model: Ingredient,
+                as: 'ingredients',
+                through: { attributes: ['qtyNeeded', 'gramasi', 'evaluationStatus', 'evaluationNote'] }
+            }]
+        });
+
+        if (!historyMenu) {
+            return { data: null }; // No history found
+        }
+
+        // Process statistics
+        const ingredients = historyMenu.get('ingredients') as any[];
+        let total = 0;
+        let pas = 0;
+        let kurang = 0;
+        let berlebih = 0;
+
+        const issues: any[] = [];
+
+        ingredients.forEach((ing: any) => {
+            const status = ing.MenuIngredient.evaluationStatus;
+            const note = ing.MenuIngredient.evaluationNote;
+
+            if (status) {
+                total++;
+                if (status === 'PAS') pas++;
+                else if (status === 'KURANG') {
+                    kurang++;
+                    issues.push({ ingredientName: ing.name, status, note, qty: ing.MenuIngredient.qtyNeeded, unit: ing.unit });
+                }
+                else if (status === 'BERLEBIH') {
+                    berlebih++;
+                    issues.push({ ingredientName: ing.name, status, note, qty: ing.MenuIngredient.qtyNeeded, unit: ing.unit });
+                }
+            }
+        });
+
+        return {
+            success: true,
+            data: {
+                date: historyMenu.get('menuDate'),
+                portionCount: historyMenu.get('portionCount'),
+                stats: {
+                    total,
+                    pas,
+                    kurang,
+                    berlebih,
+                    percentages: {
+                        pas: total > 0 ? Math.round((pas / total) * 100) : 0,
+                        kurang: total > 0 ? Math.round((kurang / total) * 100) : 0,
+                        berlebih: total > 0 ? Math.round((berlebih / total) * 100) : 0,
+                    }
+                },
+                issues
+            }
+        };
+
+    } catch (error) {
+        console.error('Error fetching menu history stats:', error);
+        return { error: 'Failed to fetch history stats', status: 500 };
     }
 }

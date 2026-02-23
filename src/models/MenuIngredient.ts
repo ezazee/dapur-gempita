@@ -6,6 +6,9 @@ export interface MenuIngredientAttributes {
     menuId: string;
     ingredientId: string;
     qtyNeeded: number;
+    evaluationStatus?: 'PAS' | 'KURANG' | 'BERLEBIH';
+    evaluationNote?: string;
+    gramasi?: number;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -17,6 +20,9 @@ class MenuIngredient extends Model<MenuIngredientAttributes, MenuIngredientCreat
     declare public menuId: string;
     declare public ingredientId: string;
     declare public qtyNeeded: number;
+    declare public evaluationStatus?: 'PAS' | 'KURANG' | 'BERLEBIH';
+    declare public evaluationNote?: string;
+    declare public gramasi?: number;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
@@ -42,6 +48,21 @@ MenuIngredient.init(
             type: DataTypes.DOUBLE,
             allowNull: false,
             field: 'qty_needed'
+        },
+        evaluationStatus: {
+            type: DataTypes.ENUM('PAS', 'KURANG', 'BERLEBIH'),
+            allowNull: true,
+            field: 'evaluation_status'
+        },
+        evaluationNote: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            field: 'evaluation_note'
+        },
+        gramasi: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+            field: 'gramasi'
         },
     },
     {

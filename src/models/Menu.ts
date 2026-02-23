@@ -8,6 +8,9 @@ interface MenuAttributes {
     description?: string;
     portionCount?: number;
     createdBy: string;
+    evaluation?: string;
+    rating?: number;
+    evaluatorId?: string;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -20,6 +23,9 @@ class Menu extends Model<MenuAttributes, MenuCreationAttributes> implements Menu
     declare public menuDate: Date;
     declare public description: string;
     declare public createdBy: string;
+    declare public evaluation: string;
+    declare public rating: number;
+    declare public evaluatorId: string;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
@@ -54,6 +60,19 @@ Menu.init(
             allowNull: false,
             defaultValue: 1,
             field: 'portion_count'
+        },
+        evaluation: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+        },
+        rating: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
+        evaluatorId: {
+            type: DataTypes.UUID,
+            allowNull: true,
+            field: 'evaluator_id'
         },
     },
     {

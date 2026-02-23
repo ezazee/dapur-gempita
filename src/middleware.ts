@@ -23,6 +23,19 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url))
     }
 
+    // SLIDING EXPIRATION: Refresh the session cookie to extend duration
+    if (hasSession) {
+        const sessionCookie = request.cookies.get('auth_session');
+        if (sessionCookie) {
+            response.cookies.set('auth_session', sessionCookie.value, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 60 * 60 * 24, // Reset to 1 day
+                path: '/',
+            });
+        }
+    }
+
     return response
 }
 

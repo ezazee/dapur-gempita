@@ -39,7 +39,7 @@ export async function login(email: string, password: string) {
         cookieStore.set(COOKIE_NAME, sessionData, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24 * 7, // 1 week
+            maxAge: 60 * 60 * 24, // 1 day
             path: '/',
         });
 

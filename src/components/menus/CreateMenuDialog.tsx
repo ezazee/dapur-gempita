@@ -75,7 +75,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
             tempId: Math.random(),
             name: ing.name,
             qty: ing.qtyNeeded || ing.qty,
-            gramasi: ing.qtyNeeded ? (ing.qtyNeeded / (menu.portionCount || 100)) : 0, // Reverse calculate gramasi
+            gramasi: ing.gramasi || (ing.qtyNeeded ? (ing.qtyNeeded / (menu.portionCount || 100)) : 0), // Use persisted gramasi if available
             unit: ing.unit
         })));
         setIsHistoryOpen(false);
@@ -106,7 +106,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                     tempId: Math.random(),
                     name: ing.name,
                     qty: ing.qtyNeeded,
-                    gramasi: ing.qtyNeeded / (menuToEdit.portionCount || 100),
+                    gramasi: ing.gramasi || (ing.qtyNeeded / (menuToEdit.portionCount || 100)), // Use persisted gramasi
                     unit: ing.unit
                 })));
             } else if (!initialData) {

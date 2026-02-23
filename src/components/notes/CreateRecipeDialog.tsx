@@ -27,6 +27,13 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [portionSize, setPortionSize] = useState(1);
+
+    // Nutrition states
+    const [calories, setCalories] = useState<number | ''>('');
+    const [carbs, setCarbs] = useState<number | ''>('');
+    const [protein, setProtein] = useState<number | ''>('');
+    const [fat, setFat] = useState<number | ''>('');
+
     const [ingredients, setIngredients] = useState<{ tempId: number, name: string; qty: number; unit: string }[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -56,6 +63,10 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
             name,
             description,
             portionSize,
+            calories: calories === '' ? undefined : calories,
+            carbs: carbs === '' ? undefined : carbs,
+            protein: protein === '' ? undefined : protein,
+            fat: fat === '' ? undefined : fat,
             ingredients: ingredients.map(i => ({
                 name: i.name.trim(),
                 qty: i.qty,
@@ -72,6 +83,10 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
             setName('');
             setDescription('');
             setPortionSize(1);
+            setCalories('');
+            setCarbs('');
+            setProtein('');
+            setFat('');
             setIngredients([]);
             onSuccess();
         } else {
@@ -114,6 +129,56 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
                             <p className="text-[10px] text-muted-foreground">
                                 Biasanya 1 porsi. Gramasi bahan di bawah ini adalah untuk jumlah porsi ini.
                             </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2 border p-3 rounded-md bg-secondary/5">
+                        <Label className="text-sm font-semibold">Informasi Gizi (per <span className="text-primary">{portionSize} pax</span>)</Label>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-2">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Total Kalori (kcal)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={calories}
+                                    onChange={(e) => setCalories(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                    placeholder="Contoh: 350"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Karbohidrat (g)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={carbs}
+                                    onChange={(e) => setCarbs(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                    placeholder="Contoh: 45"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Protein (g)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={protein}
+                                    onChange={(e) => setProtein(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                    placeholder="Contoh: 20"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Lemak (g)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={fat}
+                                    onChange={(e) => setFat(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                    placeholder="Contoh: 10"
+                                />
+                            </div>
                         </div>
                     </div>
 

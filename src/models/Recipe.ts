@@ -7,6 +7,10 @@ interface RecipeAttributes {
     name: string;
     description?: string;
     portionSize: number; // Default 1, base for calculation
+    calories?: number;
+    carbs?: number;
+    protein?: number;
+    fat?: number;
     createdBy: string;
     createdAt?: Date;
     updatedAt?: Date;
@@ -19,6 +23,10 @@ class Recipe extends Model<RecipeAttributes, RecipeCreationAttributes> implement
     declare public name: string;
     declare public description: string;
     declare public portionSize: number;
+    declare public calories: number;
+    declare public carbs: number;
+    declare public protein: number;
+    declare public fat: number;
     declare public createdBy: string;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
@@ -44,6 +52,22 @@ Recipe.init(
             allowNull: false,
             defaultValue: 1,
             field: 'portion_size'
+        },
+        calories: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
+        },
+        carbs: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
+        },
+        protein: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
+        },
+        fat: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
         },
         createdBy: {
             type: DataTypes.UUID,

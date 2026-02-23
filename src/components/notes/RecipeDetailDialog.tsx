@@ -41,6 +41,30 @@ export function RecipeDetailDialog({ open, onOpenChange, recipe }: RecipeDetailD
                     </div>
                 )}
 
+                {(recipe.calories !== undefined || recipe.carbs !== undefined || recipe.protein !== undefined || recipe.fat !== undefined) && (
+                    <div className="mt-4 border rounded-md p-3 bg-secondary/10">
+                        <h4 className="font-semibold text-sm mb-3">Informasi Gizi (per {recipe.portionSize} pax)</h4>
+                        <div className="grid grid-cols-4 gap-2 text-center divide-x">
+                            <div className="px-1">
+                                <div className="text-[10px] text-muted-foreground uppercase">Kalori</div>
+                                <div className="font-semibold text-sm">{recipe.calories ?? '-'} <span className="text-xs font-normal text-muted-foreground">kcal</span></div>
+                            </div>
+                            <div className="px-1">
+                                <div className="text-[10px] text-muted-foreground uppercase">Karbo</div>
+                                <div className="font-semibold text-sm">{recipe.carbs ?? '-'} <span className="text-xs font-normal text-muted-foreground">g</span></div>
+                            </div>
+                            <div className="px-1">
+                                <div className="text-[10px] text-muted-foreground uppercase">Protein</div>
+                                <div className="font-semibold text-sm">{recipe.protein ?? '-'} <span className="text-xs font-normal text-muted-foreground">g</span></div>
+                            </div>
+                            <div className="px-1">
+                                <div className="text-[10px] text-muted-foreground uppercase">Lemak</div>
+                                <div className="font-semibold text-sm">{recipe.fat ?? '-'} <span className="text-xs font-normal text-muted-foreground">g</span></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="mt-4">
                     <h4 className="font-semibold mb-2">Komposisi Bahan (per {recipe.portionSize} pax)</h4>
                     <div className="border rounded-md overflow-hidden">

@@ -24,6 +24,10 @@ export async function getRecipes() {
             name: r.name,
             description: r.description,
             portionSize: r.portionSize,
+            calories: r.calories,
+            carbs: r.carbs,
+            protein: r.protein,
+            fat: r.fat,
             ingredients: r.ingredients.map((i: any) => ({
                 id: i.id,
                 name: i.name,
@@ -37,7 +41,7 @@ export async function getRecipes() {
     }
 }
 
-export async function createRecipe(data: { name: string; description: string; portionSize: number; ingredients: { name: string; qty: number; unit: string }[] }) {
+export async function createRecipe(data: { name: string; description: string; portionSize: number; calories?: number; carbs?: number; protein?: number; fat?: number; ingredients: { name: string; qty: number; unit: string }[] }) {
     const session = await getSession();
     if (!session) return { error: 'Unauthorized' };
 
@@ -50,6 +54,10 @@ export async function createRecipe(data: { name: string; description: string; po
             name: data.name,
             description: data.description,
             portionSize: data.portionSize || 1,
+            calories: data.calories || undefined,
+            carbs: data.carbs || undefined,
+            protein: data.protein || undefined,
+            fat: data.fat || undefined,
             createdBy: session.id
         });
 

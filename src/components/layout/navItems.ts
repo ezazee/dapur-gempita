@@ -24,6 +24,7 @@ export interface NavItem {
 export const navItems: NavItem[] = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/", permission: "dashboard.read", excludedRoles: ['CHEF'] },
     { label: "Jadwal Masak", icon: UtensilsCrossed, href: "/menus", permission: "menu.read", excludedRoles: ['CHEF'] },
+    { label: "Evaluasi Menu", icon: StickyNote, href: "/evaluations", roles: ['SUPER_ADMIN', 'AHLI_GIZI'] },
     { label: "Kamus Resep (Standar)", icon: ChefHat, href: "/recipes", roles: ['SUPER_ADMIN', 'AHLI_GIZI', 'KEPALA_DAPUR'] },
     // Notes merged into Menus
     { label: "Pembelian", icon: ShoppingCart, href: "/purchases", permission: "purchase.read" },
