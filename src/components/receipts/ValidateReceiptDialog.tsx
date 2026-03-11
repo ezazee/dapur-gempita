@@ -171,6 +171,25 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        const missingPhoto = items.find(item => {
+            const mItem = mergedItems.find(m => m.ingredientId === item.ingredientId);
+            if (!mItem) return false;
+            const isOp = mItem.menuType === 'OPERATIONAL';
+            const isCount = isOp || isCountUnit(mItem.unit);
+            if (isCount) {
+                const q = typeof item.qtyReceived === 'string' ? parseFloat(item.qtyReceived) : (item.qtyReceived ?? 0);
+                return q > 0 && !item.photoUrl;
+            }
+            const g = typeof item.grossWeight === 'string' ? parseFloat(item.grossWeight) : item.grossWeight;
+            return g > 0 && !item.photoUrl;
+        });
+
+        if (missingPhoto) {
+            const mItem = mergedItems.find(m => m.ingredientId === missingPhoto.ingredientId);
+            toast.error(`Wajib melampirkan foto untuk barang yang diterima: ${mItem?.ingredientName}`);
+            return;
+        }
+
         // Check if any non-count items have 0 netWeight but non-zero grossWeight
         const hasSuspiciousItems = items.some(item => {
             const mItem = mergedItems.find(m => m.ingredientId === item.ingredientId);

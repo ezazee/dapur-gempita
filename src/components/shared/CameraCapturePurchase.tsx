@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,6 +16,15 @@ export function CameraCapturePurchase({ onCapture, currentImage, onRemove }: Cam
     const [stream, setStream] = useState<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const logoImgRef = useRef<HTMLImageElement | null>(null);
+
+    useEffect(() => {
+        const img = new Image();
+        img.src = '/Logo.png';
+        img.onload = () => {
+            logoImgRef.current = img;
+        };
+    }, []);
 
     const startCamera = async () => {
         try {
@@ -55,38 +64,65 @@ export function CameraCapturePurchase({ onCapture, currentImage, onRemove }: Cam
         // Draw video frame to canvas
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Add timestamp watermark
+        // Custom formatting to ensure it's always very clear
         const now = new Date();
-        const timestamp = now.toLocaleString('id-ID', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
+        const getDayName = (d: number) => ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][d];
+        const getMonthName = (m: number) => ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'][m];
+        
+        const dayName = getDayName(now.getDay());
+        const dateStr = `${dayName}, ${now.getDate()} ${getMonthName(now.getMonth())} ${now.getFullYear()}`;
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
-        // Watermark styling
-        const fontSize = Math.max(canvas.width * 0.03, 16);
-        context.font = `bold ${fontSize}px Arial`;
-        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        context.lineWidth = 3;
+        const fontSize = Math.max(canvas.width * 0.035, 18);
+        const padding = Math.max(canvas.width * 0.03, 15);
+        
+        // Draw bottom bar overlay
+        const barHeight = fontSize * 4;
+        const barY = canvas.height - barHeight;
+        
+        // Add a nice gradient
+        const gradient = context.createLinearGradient(0, barY, 0, canvas.height);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.0)');
+        gradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.6)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+        context.fillStyle = gradient;
+        context.fillRect(0, barY, canvas.width, barHeight);
 
-        // Position at bottom-right
-        const padding = 10;
-        const textWidth = context.measureText(timestamp).width;
-        const x = canvas.width - textWidth - padding;
-        const y = canvas.height - padding;
+        // Logo
+        if (logoImgRef.current) {
+            const logo = logoImgRef.current;
+            const maxLogoHeight = barHeight * 0.7;
+            const logoHeight = Math.min(maxLogoHeight, 120);
+            const logoWidth = (logo.width / logo.height) * logoHeight;
+            const logoX = padding;
+            // Vertically center in the dark part of the gradient
+            const logoY = canvas.height - (barHeight * 0.5) - (logoHeight / 2) + (barHeight * 0.15); 
+            context.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+        }
 
-        // Draw background rectangle
-        context.fillRect(x - 5, y - fontSize - 5, textWidth + 10, fontSize + 10);
+        // Text
+        context.textAlign = 'right';
+        context.textBaseline = 'bottom';
+        context.shadowColor = 'rgba(0,0,0,0.8)';
+        context.shadowBlur = 4;
+        context.shadowOffsetX = 2;
+        context.shadowOffsetY = 2;
+        
+        // Time
+        context.fillStyle = '#ffde59'; // vibrant yellow
+        context.font = `900 ${fontSize * 1.5}px Arial, sans-serif`;
+        context.fillText(timeStr, canvas.width - padding, canvas.height - padding - fontSize - 5);
 
-        // Draw text with outline
-        context.strokeText(timestamp, x, y);
-        context.fillStyle = 'white';
-        context.fillText(timestamp, x, y);
+        // Date
+        context.fillStyle = '#ffffff';
+        context.font = `bold ${fontSize}px Arial, sans-serif`;
+        context.fillText(dateStr, canvas.width - padding, canvas.height - padding);
+
+        // Reset shadow before getting image
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
+        context.shadowOffsetX = 0;
+        context.shadowOffsetY = 0;
 
         // Get image data
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);

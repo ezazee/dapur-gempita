@@ -147,6 +147,21 @@ export function ProductionDialog({ open, onOpenChange, onSuccess, menuId }: Prod
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const missingPhoto = Object.values(menuStates).find(state => {
+            const k = parseInt(String(state.countKecil)) || 0;
+            const b = parseInt(String(state.countBesar)) || 0;
+            const p = parseInt(String(state.countBumil)) || 0;
+            const l = parseInt(String(state.countBalita)) || 0;
+            const total = k + b + p + l;
+            return total > 0 && !state.photoUrl;
+        });
+
+        if (missingPhoto) {
+            toast.error(`Wajib melampirkan foto hasil produksi untuk menu: ${missingPhoto.menu.name}`);
+            return;
+        }
+
         const submissions = Object.values(menuStates).map(state => {
             const k = parseInt(String(state.countKecil)) || 0;
             const b = parseInt(String(state.countBesar)) || 0;
