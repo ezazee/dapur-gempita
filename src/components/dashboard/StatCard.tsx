@@ -16,7 +16,7 @@ interface StatCardProps {
 export function StatCard({ title, value, icon, trend, variant = "default" }: StatCardProps) {
   const variantStyles = {
     default: "before:from-primary before:to-primary/60",
-    warning: "before:from-warning before:to-warning/60",
+    warning: "before:from-accent before:to-accent/60",
     success: "before:from-success before:to-success/60",
     danger: "before:from-destructive before:to-destructive/60",
   };

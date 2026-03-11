@@ -5,7 +5,11 @@ export interface RecipeIngredientAttributes {
     id: string;
     recipeId: string;
     ingredientId: string;
-    qtyPerPortion: number;
+    qtyBesar: number;
+    qtyKecil?: number;
+    qtyBumil?: number;
+    qtyBalita?: number;
+    isSecukupnya?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -16,7 +20,11 @@ class RecipeIngredient extends Model<RecipeIngredientAttributes, RecipeIngredien
     declare public id: string;
     declare public recipeId: string;
     declare public ingredientId: string;
-    declare public qtyPerPortion: number;
+    declare public qtyBesar: number;
+    declare public qtyKecil: number;
+    declare public qtyBumil: number;
+    declare public qtyBalita: number;
+    declare public isSecukupnya: boolean;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
@@ -38,10 +46,31 @@ RecipeIngredient.init(
             allowNull: false,
             field: 'ingredient_id'
         },
-        qtyPerPortion: {
-            type: DataTypes.FLOAT, // Use FLOAT for precision like 0.005 kg
+        qtyBesar: {
+            type: DataTypes.FLOAT,
             allowNull: false,
-            field: 'qty_per_portion'
+            field: 'qty_besar'
+        },
+        qtyKecil: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
+            field: 'qty_kecil'
+        },
+        qtyBumil: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
+            field: 'qty_bumil'
+        },
+        qtyBalita: {
+            type: DataTypes.FLOAT,
+            allowNull: true,
+            field: 'qty_balita'
+        },
+        isSecukupnya: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+            field: 'is_secukupnya'
         },
     },
     {

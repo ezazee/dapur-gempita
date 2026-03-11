@@ -16,6 +16,7 @@ import { getMenuEvaluationStats } from '@/app/actions/menus';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MenuStatisticsDialogProps {
     open: boolean;
@@ -26,18 +27,29 @@ interface MenuStatisticsDialogProps {
 export function MenuStatisticsDialog({ open, onOpenChange, menu }: MenuStatisticsDialogProps) {
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState<any>(null);
+    const [selectedSubMenu, setSelectedSubMenu] = useState<any>(null);
 
     useEffect(() => {
         if (open && menu) {
-            fetchStats();
+            // Default to OMPRENG if multiple exist, otherwise the first one
+            const initial = menu.originalMenus?.find((m: any) => m.menuType === 'OMPRENG') || menu.originalMenus?.[0] || menu;
+            setSelectedSubMenu(initial);
         } else {
             setStats(null);
+            setSelectedSubMenu(null);
         }
     }, [open, menu]);
 
+    useEffect(() => {
+        if (selectedSubMenu) {
+            fetchStats();
+        }
+    }, [selectedSubMenu]);
+
     const fetchStats = async () => {
+        if (!selectedSubMenu) return;
         setLoading(true);
-        const res = await getMenuEvaluationStats(menu.name, menu.menuDate);
+        const res = await getMenuEvaluationStats(selectedSubMenu.name, selectedSubMenu.menuDate || menu.menuDate);
         setLoading(false);
         if (res.success && res.data) {
             setStats(res.data);
@@ -52,11 +64,38 @@ export function MenuStatisticsDialog({ open, onOpenChange, menu }: MenuStatistic
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Statistik Riwayat: {menu.name}</DialogTitle>
+                    <DialogTitle>Statistik Riwayat</DialogTitle>
                     <DialogDescription>
                         Data di bawah ini diambil dari pelaksanaan <b>paling terakhir</b> menu ini di masa lalu.
                     </DialogDescription>
                 </DialogHeader>
+
+                {menu.originalMenus && menu.originalMenus.length > 1 && (
+                    <div className="flex gap-2 p-1 bg-muted rounded-lg mt-4">
+                        {menu.originalMenus.map((m: any) => (
+                            <button
+                                key={m.id}
+                                onClick={() => setSelectedSubMenu(m)}
+                                className={cn(
+                                    "flex-1 px-3 py-1.5 rounded-md text-xs font-bold transition-all",
+                                    selectedSubMenu?.id === m.id ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:bg-white/50"
+                                )}
+                            >
+                                {m.menuType === 'OMPRENG' ? 'Menu Masak' : 'Menu Kering'}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                <div className="mt-2 py-2 border-b">
+                    <h3 className="font-bold text-lg text-primary">{selectedSubMenu?.name}</h3>
+                    <Badge variant="outline" className={cn(
+                        "mt-1 text-[10px] uppercase font-bold",
+                        selectedSubMenu?.menuType === 'OMPRENG' ? "text-blue-600 border-blue-100" : "text-amber-600 border-amber-100"
+                    )}>
+                        {selectedSubMenu?.menuType === 'OMPRENG' ? 'Masak (Ompreng)' : 'Paket Tambahan (Kering)'}
+                    </Badge>
+                </div>
 
                 <div className="py-4 min-h-[150px] flex flex-col justify-center">
                     {loading ? (
@@ -80,13 +119,21 @@ export function MenuStatisticsDialog({ open, onOpenChange, menu }: MenuStatistic
                                 <div className="bg-secondary/20 p-3 rounded-md border flex flex-col justify-center items-center text-center">
                                     <span className="text-xs text-muted-foreground mb-1">Skala Masak Saat Itu</span>
                                     <span className="font-semibold text-sm text-primary">
-                                        {stats.portionCount} Porsi
+                                        {(stats.countKecil || 0) + (stats.countBesar || 0) + (stats.countBumil || 0) + (stats.countBalita || 0)} Porsi
                                     </span>
+                                    {(stats.countKecil > 0 || stats.countBumil > 0 || stats.countBalita > 0) && (
+                                        <div className="flex gap-1 mt-1 text-[8px] text-muted-foreground uppercase">
+                                            <span>K:{stats.countKecil}</span>
+                                            <span>B:{stats.countBesar}</span>
+                                            <span>P:{stats.countBumil}</span>
+                                            <span>L:{stats.countBalita}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="bg-blue-50 text-blue-800 border-blue-200 border text-xs p-3 rounded-md leading-relaxed">
-                                💡 <b>Tips:</b> Gunakan data evaluasi masak <b>{format(new Date(stats.date), 'dd MMM', { locale: id })}</b> ini sebagai referensi untuk penyesuaian bahan pada jadwal masak {format(new Date(menu.menuDate), 'dd MMM yyyy', { locale: id })}.
+                                💡 <b>Tips:</b> Gunakan data evaluasi masak <b>{format(new Date(stats.date), 'dd MMM', { locale: id })}</b> ini sebagai referensi untuk penyesuaian bahan pada jadwal masak {format(new Date(selectedSubMenu?.menuDate || menu.menuDate), 'dd MMM yyyy', { locale: id })}.
                             </div>
 
                             <div className="space-y-3">

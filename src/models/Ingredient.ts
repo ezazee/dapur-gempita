@@ -5,18 +5,20 @@ interface IngredientAttributes {
     id: string;
     name: string;
     unit: string;
+    category: string; // MASAK, KERING, OPERASIONAL
     currentStock: number;
     minimumStock: number;
     createdAt?: Date;
     updatedAt?: Date;
 }
 
-interface IngredientCreationAttributes extends Optional<IngredientAttributes, 'id' | 'currentStock' | 'minimumStock'> { }
+interface IngredientCreationAttributes extends Optional<IngredientAttributes, 'id' | 'category' | 'currentStock' | 'minimumStock'> { }
 
 class Ingredient extends Model<IngredientAttributes, IngredientCreationAttributes> implements IngredientAttributes {
     declare public id: string;
     declare public name: string;
     declare public unit: string;
+    declare public category: string;
     declare public currentStock: number;
     declare public minimumStock: number;
     declare public readonly createdAt: Date;
@@ -37,6 +39,11 @@ Ingredient.init(
         unit: {
             type: DataTypes.STRING,
             allowNull: false,
+        },
+        category: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            defaultValue: 'MASAK'
         },
         currentStock: {
             type: DataTypes.DOUBLE,

@@ -1,13 +1,14 @@
-import { 
-  ShoppingCart, 
-  ClipboardCheck, 
-  ChefHat, 
+import {
+  ShoppingCart,
+  ClipboardCheck,
+  ChefHat,
   Package,
-  ArrowRight 
+  ArrowRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface Activity {
   id: string;
@@ -30,14 +31,14 @@ const activityIcons = {
 };
 
 const activityColors = {
-  purchase: "bg-info/10 text-info",
+  purchase: "bg-primary/10 text-primary",
   receipt: "bg-success/10 text-success",
-  production: "bg-warning/10 text-warning",
+  production: "bg-accent/10 text-accent-foreground",
   stock_adjust: "bg-primary/10 text-primary",
 };
 
 const statusColors = {
-  pending: "bg-warning/10 text-warning",
+  pending: "bg-accent/10 text-accent-foreground",
   completed: "bg-success/10 text-success",
   rejected: "bg-destructive/10 text-destructive",
 };
@@ -50,46 +51,74 @@ const statusLabels = {
 
 export function RecentActivity({ activities }: RecentActivityProps) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="overflow-hidden border-2 shadow-sm h-full">
+      <CardHeader className="pb-3 border-b bg-muted/10">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Aktivitas Terbaru</CardTitle>
-          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-            Lihat Semua
-            <ArrowRight className="ml-1 h-3 w-3" />
-          </Button>
+          <CardTitle className="text-base font-black tracking-tight flex items-center gap-2">
+            <Package className="h-4 w-4 text-primary" />
+            AKTIVITAS TERBARU
+          </CardTitle>
+          <Link href="/stock-movements" className="contents">
+            <Button variant="ghost" size="sm" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Lihat Semua
+              <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
+          </Link>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {activities.map((activity) => {
-          const Icon = activityIcons[activity.type];
-          return (
-            <div key={activity.id} className="flex gap-3">
-              <div className={cn("rounded-lg p-2 h-fit", activityColors[activity.type])}>
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium truncate">{activity.title}</p>
-                  {activity.status && (
-                    <span className={cn(
-                      "text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap",
-                      statusColors[activity.status]
-                    )}>
-                      {statusLabels[activity.status]}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {activity.description}
-                </p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">
-                  {activity.time}
-                </p>
-              </div>
+      <CardContent className="p-0">
+        <div className="divide-y">
+          {activities.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 opacity-30">
+              <Package className="h-10 w-10 mb-2" />
+              <p className="text-sm font-medium">Belum ada aktivitas</p>
             </div>
-          );
-        })}
+          ) : (
+            activities.map((activity) => {
+              const Icon = activityIcons[activity.type] || Package;
+              return (
+                <div key={activity.id} className="flex gap-4 p-4 hover:bg-muted/30 transition-colors group">
+                  <div className={cn(
+                    "rounded-xl p-2.5 h-fit shadow-sm border group-hover:scale-105 transition-transform",
+                    activityColors[activity.type] || "bg-muted text-muted-foreground"
+                  )}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <p className="text-sm font-black tracking-tight truncate">{activity.title}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/60 whitespace-nowrap">
+                        {activity.time}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+                      {activity.description}
+                    </p>
+                    {activity.status && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className={cn(
+                          "text-[9px] font-black uppercase px-2 py-0.5 rounded-sm tracking-tighter",
+                          statusColors[activity.status] || "bg-muted text-muted-foreground"
+                        )}>
+                          {statusLabels[activity.status] || activity.status}
+                        </span>
+                        {/* If it's a production, we can show menu type info if available */}
+                        {(activity as any).menuType && (
+                          <span className={cn(
+                            "text-[10px] font-black uppercase px-2 py-0.5 rounded-sm tracking-tighter",
+                            (activity as any).menuType === 'KERING' ? "bg-accent/10 text-accent-foreground" : "bg-primary/10 text-primary"
+                          )}>
+                            {(activity as any).menuType === 'KERING' ? 'Snack' : 'Masak'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </CardContent>
     </Card>
   );

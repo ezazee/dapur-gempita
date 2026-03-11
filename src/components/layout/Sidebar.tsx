@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -38,17 +38,36 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const { hasPermission, role, signOut, profile } = useAuth();
+  const [pendingEvaluations, setPendingEvaluations] = useState(0);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const { getDashboardData } = await import("@/app/actions/dashboard");
+        const data = await getDashboardData();
+        setPendingEvaluations(data.stats.pendingEvaluations || 0);
+      } catch (e) {
+        // ignore
+      }
+    };
+    if (role === 'AHLI_GIZI' || role === 'SUPER_ADMIN') {
+      fetchCounts();
+    }
+  }, [role]);
 
   const visibleItems = navItems.filter(item => {
-    // Check if role is excluded
+    // Super Admin sees everything
+    if (role === 'SUPER_ADMIN') return true;
+
+    // Check if role is explicitly excluded
     if (item.excludedRoles && role && item.excludedRoles.includes(role)) {
       return false;
     }
-    // Check role-based access
+    // Check role-based access (legacy/strict)
     if (item.roles && role && !item.roles.includes(role)) {
       return false;
     }
-    // Check permission-based access
+    // Check dynamic permission-based access
     if (item.permission && !hasPermission(item.permission)) {
       return false;
     }
@@ -58,7 +77,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 ease-in-out hidden md:flex flex-col",
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 ease-in-out hidden lg:flex flex-col print:hidden",
         collapsed ? "w-16" : "w-64"
       )}
       style={{ background: "var(--gradient-sidebar)" }}
@@ -105,12 +124,14 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
         {visibleItems.map((item) => {
           const isActive = pathname === item.href;
+          const showBadge = item.href === '/evaluations' && pendingEvaluations > 0 && (role === 'AHLI_GIZI' || role === 'SUPER_ADMIN');
+
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "nav-item",
+                "nav-item relative",
                 isActive && "active",
                 collapsed && "justify-center px-2"
               )}
@@ -118,6 +139,14 @@ export function Sidebar() {
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
               {!collapsed && <span>{item.label}</span>}
+              {showBadge && (
+                <span className={cn(
+                  "absolute right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse",
+                  collapsed && "top-1 right-0"
+                )}>
+                  {pendingEvaluations}
+                </span>
+              )}
             </Link>
           );
         })}

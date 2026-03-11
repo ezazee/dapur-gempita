@@ -16,7 +16,7 @@ const DEMO_ACCOUNTS = [
     { role: "SUPER_ADMIN", email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
     { role: "AHLI_GIZI", email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
     { role: "KEUANGAN", email: "keuangan@gempita.id", password: "pembeli1", name: "Keuangan" },
-    { role: "ASLAP", email: "aslap@gempita.id", password: "penerima", name: "Asisten Lapangan" },
+    { role: "ASLAP", email: "aslap@gempita.id", password: "aslap123", name: "Asisten Lapangan" },
     { role: "CHEF", email: "chef@gempita.id", password: "chef1234", name: "Chef Dapur" },
     { role: "KEPALA_DAPUR", email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
 ];

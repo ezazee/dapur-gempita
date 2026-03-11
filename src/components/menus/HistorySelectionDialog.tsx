@@ -11,15 +11,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2, History } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { getMenus } from '@/app/actions/menus';
 
 interface HistorySelectionDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSelect: (menu: any) => void;
+    filterType?: 'OMPRENG' | 'KERING' | null;
 }
 
-export function HistorySelectionDialog({ open, onOpenChange, onSelect }: HistorySelectionDialogProps) {
+export function HistorySelectionDialog({ open, onOpenChange, onSelect, filterType }: HistorySelectionDialogProps) {
     const [menus, setMenus] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -32,8 +34,32 @@ export function HistorySelectionDialog({ open, onOpenChange, onSelect }: History
 
     const fetchMenus = async () => {
         setLoading(true);
-        const data = await getMenus();
-        setMenus(data);
+        let data = await getMenus();
+
+        // Apply type filter if provided
+        if (filterType) {
+            data = data.filter((m: any) => m.menuType === filterType);
+        }
+
+        // Group menus by date
+        const grouped = data.reduce((acc: any, menu: any) => {
+            const dateKey = new Date(menu.menuDate).toISOString().split('T')[0];
+            if (!acc[dateKey]) {
+                acc[dateKey] = {
+                    ...menu,
+                    id: `group-${dateKey}`,
+                    originalMenus: [menu]
+                };
+            } else {
+                const g = acc[dateKey];
+                g.originalMenus.push(menu);
+                g.name = `${g.name} & ${menu.name}`;
+                g.ingredients = [...g.ingredients, ...menu.ingredients];
+            }
+            return acc;
+        }, {});
+
+        setMenus(Object.values(grouped).sort((a: any, b: any) => new Date(b.menuDate).getTime() - new Date(a.menuDate).getTime()));
         setLoading(false);
     };
 
@@ -80,9 +106,25 @@ export function HistorySelectionDialog({ open, onOpenChange, onSelect }: History
                             >
                                 <div className="flex-1 min-w-0 mr-4">
                                     <h4 className="font-semibold truncate">{menu.name}</h4>
-                                    <p className="text-xs text-muted-foreground">
-                                        {new Date(menu.menuDate).toLocaleDateString('id-ID', { dateStyle: 'long' })} • {menu.ingredients.length} Bahan
-                                    </p>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <span>{new Date(menu.menuDate).toLocaleDateString('id-ID', { dateStyle: 'long' })}</span>
+                                            <span>•</span>
+                                            <span>{menu.ingredients.length} Bahan</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                            {menu.originalMenus?.some((m: any) => m.menuType === 'OMPRENG') && (
+                                                <Badge variant="secondary" className="text-[9px] bg-blue-50 text-blue-700 border-blue-100 font-bold uppercase tracking-tighter h-4 px-1">
+                                                    Masak
+                                                </Badge>
+                                            )}
+                                            {menu.originalMenus?.some((m: any) => m.menuType === 'KERING') && (
+                                                <Badge variant="secondary" className="text-[9px] bg-amber-50 text-amber-700 border-amber-100 font-bold uppercase tracking-tighter h-4 px-1">
+                                                    Kering
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                                 <Button size="sm" variant="ghost">Pilih</Button>
                             </div>

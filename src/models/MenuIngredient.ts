@@ -9,6 +9,10 @@ export interface MenuIngredientAttributes {
     evaluationStatus?: 'PAS' | 'KURANG' | 'BERLEBIH';
     evaluationNote?: string;
     gramasi?: number;
+    qtyBesar?: number;
+    qtyKecil?: number;
+    qtyBumil?: number;
+    qtyBalita?: number;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -23,6 +27,10 @@ class MenuIngredient extends Model<MenuIngredientAttributes, MenuIngredientCreat
     declare public evaluationStatus?: 'PAS' | 'KURANG' | 'BERLEBIH';
     declare public evaluationNote?: string;
     declare public gramasi?: number;
+    declare public qtyBesar?: number;
+    declare public qtyKecil?: number;
+    declare public qtyBumil?: number;
+    declare public qtyBalita?: number;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
@@ -64,6 +72,26 @@ MenuIngredient.init(
             allowNull: true,
             field: 'gramasi'
         },
+        qtyBesar: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+            field: 'qty_besar'
+        },
+        qtyKecil: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+            field: 'qty_kecil'
+        },
+        qtyBumil: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+            field: 'qty_bumil'
+        },
+        qtyBalita: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+            field: 'qty_balita'
+        }
     },
     {
         sequelize,

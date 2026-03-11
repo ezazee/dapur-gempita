@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Dialog,
     DialogContent,
@@ -13,46 +10,93 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { Plus, X, Search, ShoppingCart, Save, Ban, MessageSquare } from 'lucide-react';
+import { Plus, X, Search, ShoppingCart, Save, Ban, MessageSquare, Edit, Utensils, Package } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { CameraCapturePurchase } from '@/components/shared/CameraCapturePurchase';
 import { editPurchase } from '@/app/actions/purchases';
 import { searchIngredients } from '@/app/actions/menus';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, formatRecipeQty, denormalizeQty } from '@/lib/utils';
 
 interface EditPurchaseDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     purchase: any;
     onSuccess: () => void;
+    initialCompletionItems?: any[];
 }
 
-export function EditPurchaseDialog({ open, onOpenChange, purchase, onSuccess }: EditPurchaseDialogProps) {
+export function EditPurchaseDialog({ open, onOpenChange, purchase, onSuccess, initialCompletionItems }: EditPurchaseDialogProps) {
     const [note, setNote] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [selectedItems, setSelectedItems] = useState<any[]>([]);
+    const [selectedItems, setSelectedItems] = useState<Array<any>>([]);
     const [loading, setLoading] = useState(false);
+    const [tripMemo, setTripMemo] = useState('');
 
     useEffect(() => {
         if (purchase && open) {
             setNote(purchase.note || '');
             // Map existing items
-            setSelectedItems(purchase.items.map((i: any) => ({
-                id: i.ingredientId || i.id, // Handle if flattened or nested
-                name: i.ingredientName || i.name,
-                unit: i.unit,
-                qty: i.estimatedQty || i.qty,
-                memo: i.memo,
-                photoUrl: i.photoUrl
-            })));
+            const existingItems = purchase.items.map((i: any) => {
+                const formatted = formatRecipeQty(i.estimatedQty || i.qty, i.unit);
+                const targetFormatted = i.targetQty !== undefined ? formatRecipeQty(i.targetQty, i.unit) : undefined;
+                return {
+                    tempId: crypto.randomUUID(),
+                    id: i.ingredientId || i.id,
+                    name: i.ingredientName || i.name,
+                    unit: formatted.unit,
+                    qty: formatted.value,
+                    targetQty: targetFormatted ? targetFormatted.value : undefined,
+                    originalQty: i.estimatedQty || i.qty,
+                    originalUnit: i.unit,
+                    memo: i.memo,
+                    photoUrl: i.photoUrl
+                }
+            });
+
+            // If there are completion items, merge them
+            let finalItems = [...existingItems];
+            if (initialCompletionItems && initialCompletionItems.length > 0) {
+                const defaultMemo = 'Toko Baru...';
+                setTripMemo(defaultMemo);
+                const completionMapped = initialCompletionItems.map(i => {
+                    const formatted = formatRecipeQty(i.qty, i.unit);
+                    const targetFormatted = i.targetQty !== undefined ? formatRecipeQty(i.targetQty, i.unit) : undefined;
+                    return {
+                        tempId: crypto.randomUUID(),
+                        id: i.id,
+                        name: i.name,
+                        unit: formatted.unit,
+                        qty: formatted.value, // Remaining qty formatted
+                        targetQty: targetFormatted ? targetFormatted.value : undefined,
+                        originalQty: i.qty,
+                        originalUnit: i.unit,
+                        memo: defaultMemo, // Set initial memo
+                        photoUrl: undefined,
+                        isNewTrip: true, // Flag to distinguish
+                        menuType: i.menuType // Preserve menu type
+                    }
+                });
+                finalItems = [...finalItems, ...completionMapped];
+            }
+
+            setSelectedItems(finalItems);
         }
-    }, [purchase, open]);
+    }, [purchase, open, initialCompletionItems]);
+
+    const updateTripMemo = (memo: string) => {
+        setTripMemo(memo);
+        setSelectedItems(items => items.map(i => i.isNewTrip ? { ...i, memo } : i));
+    };
 
     const handleSearch = async (term: string) => {
         setSearchTerm(term);
@@ -65,30 +109,49 @@ export function EditPurchaseDialog({ open, onOpenChange, purchase, onSuccess }: 
     };
 
     const addItem = (ing: any) => {
-        if (selectedItems.some(i => i.id === ing.id)) return;
-        setSelectedItems([...selectedItems, { ...ing, qty: 1 }]);
+        // Inherit targetQty if another item of the same ingredient already has it
+        const existingWithTarget = selectedItems.find(i => i.id === ing.id && i.targetQty !== undefined);
+        const targetQty = existingWithTarget?.targetQty;
+
+        const formatted = formatRecipeQty(1, ing.unit);
+
+        setSelectedItems([...selectedItems, {
+            ...ing,
+            tempId: crypto.randomUUID(),
+            qty: 1, // Default 1 for manual addition
+            targetQty,
+            originalUnit: ing.unit,
+            memo: note
+        }]);
         setSearchTerm('');
         setSearchResults([]);
     };
 
-    const removeItem = (id: string) => {
-        setSelectedItems(selectedItems.filter(i => i.id !== id));
+
+    const removeItem = (tempId: string) => {
+        setSelectedItems(selectedItems.filter(i => i.tempId !== tempId));
     };
 
-    const updateQty = (id: string, qty: number) => {
-        setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, qty } : i));
+    const updateQty = (tempId: string, value: number | string) => {
+        setSelectedItems(prev => prev.map(i => {
+            if (i.tempId === tempId) {
+                return { ...i, qty: value };
+            }
+            return i;
+        }));
     };
 
-    const updateMemo = (id: string, memo: string) => {
-        setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, memo } : i));
+
+    const updatePhoto = (tempId: string, photoUrl: string) => {
+        setSelectedItems(selectedItems.map(i => i.tempId === tempId ? { ...i, photoUrl } : i));
     };
 
-    const updatePhoto = (id: string, photoUrl: string) => {
-        setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, photoUrl } : i));
+    const updateMemo = (tempId: string, memo: string) => {
+        setSelectedItems(selectedItems.map(i => i.tempId === tempId ? { ...i, memo } : i));
     };
 
-    const removePhoto = (id: string) => {
-        setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, photoUrl: undefined } : i));
+    const removePhoto = (tempId: string) => {
+        setSelectedItems(selectedItems.map(i => i.tempId === tempId ? { ...i, photoUrl: undefined } : i));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -97,7 +160,23 @@ export function EditPurchaseDialog({ open, onOpenChange, purchase, onSuccess }: 
 
         const res = await editPurchase(purchase.id, {
             note,
-            items: selectedItems.map(i => ({ ingredientId: i.id, qty: i.qty, memo: i.memo, photoUrl: i.photoUrl }))
+            items: selectedItems.map(i => {
+                const qValue = typeof i.qty === 'string' ? parseFloat(i.qty) : i.qty;
+                const finalQty = isNaN(qValue) ? 0 : denormalizeQty(qValue, i.unit, i.originalUnit || i.unit);
+
+                let finalTarget = i.targetQty;
+                if (finalTarget && i.originalUnit) {
+                    finalTarget = denormalizeQty(finalTarget, i.unit, i.originalUnit);
+                }
+
+                return {
+                    ingredientId: i.id,
+                    qty: finalQty,
+                    targetQty: finalTarget,
+                    memo: i.memo,
+                    photoUrl: i.photoUrl
+                }
+            })
         });
 
         setLoading(false);
@@ -111,153 +190,213 @@ export function EditPurchaseDialog({ open, onOpenChange, purchase, onSuccess }: 
         }
     };
 
+    const getTotalQty = (ingredientId: string) => {
+        return selectedItems
+            .filter(i => i.id === ingredientId)
+            .reduce((sum, i) => sum + (typeof i.qty === 'string' ? parseFloat(i.qty) : i.qty), 0);
+    };
+
+    const getTargetQty = (ingredientId: string) => {
+        const item = selectedItems.find(i => i.id === ingredientId && i.targetQty !== undefined);
+        return item?.targetQty;
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Update Realisasi Pembelian</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        {initialCompletionItems ? <Plus className="h-5 w-5 text-primary" /> : <Edit className="h-5 w-5 text-primary" />}
+                        {initialCompletionItems ? 'Lengkapi Belanjaan (Toko Baru)' : 'Update Realisasi Pembelian'}
+                    </DialogTitle>
                     <DialogDescription>
-                        Sesuaikan jumlah barang dengan yang sebenarnya dibeli. Hapus barang jika tidak ada/habis.
+                        {initialCompletionItems
+                            ? 'Tambahkan daftar belanja baru untuk melengkapi item yang masih kurang.'
+                            : 'Sesuaikan jumlah barang dengan yang sebenarnya dibeli.'}
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Catatan (Alasan Perubahan)</Label>
-                        <Textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder="Contoh: Stok sawi habis di pasar, diganti bayam (tambah item baru)..."
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Catatan Utama (Trip 1)</Label>
+                            <div className="text-xs p-2 bg-muted/50 rounded border italic">
+                                "{purchase?.note || '-'}"
+                            </div>
+                        </div>
+                        {initialCompletionItems && (
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-primary uppercase tracking-wider">Nama Toko / Catatan Baru</Label>
+                                <Input
+                                    value={tripMemo}
+                                    onChange={(e) => updateTripMemo(e.target.value)}
+                                    placeholder="Misal: Toko Sinar Jaya..."
+                                    className="h-8 text-sm border-primary/50 focus-visible:ring-primary"
+                                    required
+                                />
+                            </div>
+                        )}
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Daftar Barang Realisasi</Label>
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase tracking-wider">Daftar Barang Trip Ini</Label>
+                    </div>
 
-                        {/* Search to add replacement items */}
-                        <div className="relative mb-2">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Cari barang pengganti/tambahan..."
-                                value={searchTerm}
-                                onChange={(e) => handleSearch(e.target.value)}
-                                className="pl-8"
-                            />
-                            {searchResults.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-40 overflow-y-auto">
-                                    {searchResults.map(result => (
-                                        <button
-                                            key={result.id}
-                                            type="button"
-                                            className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
-                                            onClick={() => addItem(result)}
-                                        >
-                                            <div className="font-medium">{result.name}</div>
-                                            <div className="text-xs text-muted-foreground">Unit: {result.unit}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                    <div className="relative mb-2">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Cari barang pengganti/tambahan..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            className="pl-8"
+                        />
+                        {searchResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-40 overflow-y-auto">
+                                {searchResults.map(result => (
+                                    <button
+                                        key={result.id}
+                                        type="button"
+                                        className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                                        onClick={() => addItem(result)}
+                                    >
+                                        <div className="font-medium">{result.name}</div>
+                                        <div className="text-xs text-muted-foreground">Unit: {result.unit}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-                        <div className="space-y-2 mt-2 bg-muted/30 p-2 rounded-md border min-h-[100px]">
-                            {selectedItems.map((item) => (
-                                <div key={item.id} className={cn(
-                                    "flex items-center justify-between p-2 rounded border shadow-sm transition-colors",
-                                    item.qty === 0 ? "bg-destructive/5 border-destructive/20" : "bg-background"
+                    <div className="space-y-6 max-h-[40vh] overflow-y-auto pr-2">
+                        {/* In completion mode: only show new trip items. Otherwise show all. */}
+                        {(() => {
+                            const visibleItems = selectedItems.filter(item => !initialCompletionItems || item.isNewTrip);
+                            const masakItems = visibleItems.filter(i => i.menuType !== 'KERING');
+                            const keringItems = visibleItems.filter(i => i.menuType === 'KERING');
+
+                            const renderItem = (item: any) => (
+                                <div key={item.tempId} className={cn(
+                                    "flex flex-col p-3 rounded-lg border shadow-sm transition-all animate-in fade-in slide-in-from-top-2",
+                                    (typeof item.qty === 'string' ? parseFloat(item.qty) : item.qty) === 0 ? "bg-destructive/5 border-destructive/20" : "bg-white",
+                                    item.isNewTrip && "border-primary/30 ring-1 ring-primary/5"
                                 )}>
-                                    <div className="flex-1">
-                                        <span className={cn(
-                                            "font-medium text-sm block",
-                                            item.qty === 0 && "text-muted-foreground line-through decoration-destructive"
-                                        )}>{item.name}</span>
-                                        {item.qty === 0 && <span className="text-[10px] text-destructive font-bold uppercase">Stok Habis / Kosong</span>}
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <div className="flex flex-col items-end">
-                                            {/* <span className="text-[10px] text-muted-foreground uppercase">Realisasi</span> */}
-                                            <div className="flex items-center space-x-1">
-                                                <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.1"
-                                                    value={item.qty}
-                                                    onChange={(e) => updateQty(item.id, parseFloat(e.target.value) || 0)}
-                                                    className={cn(
-                                                        "w-16 h-7 text-right text-sm",
-                                                        item.qty === 0 && "text-destructive font-bold border-destructive bg-destructive/10"
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex-1 space-y-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className={cn(
+                                                    "font-bold text-sm",
+                                                    (typeof item.qty === 'string' ? parseFloat(item.qty) : item.qty) === 0 && "text-muted-foreground line-through decoration-destructive"
+                                                )}>{item.name}</span>
+                                                {item.isNewTrip && <Badge className="h-4 text-[9px] px-1 bg-primary/10 text-primary border-none">BARU</Badge>}
+                                            </div>
+
+                                            {item.targetQty !== undefined && (
+                                                <div className="flex items-center gap-1.5 mt-1">
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm font-medium">
+                                                        Target: {formatRecipeQty(item.targetQty, item.unit).stringValue} {formatRecipeQty(item.targetQty, item.unit).unit}
+                                                    </span>
+                                                    {getTotalQty(item.id) < (item.targetQty || 0) && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-sm font-bold flex items-center gap-1 border border-yellow-200">
+                                                            Kurang: {formatRecipeQty((item.targetQty || 0) - getTotalQty(item.id), item.unit).stringValue}
+                                                        </span>
                                                     )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex flex-col items-end gap-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Label className="text-[10px] uppercase text-muted-foreground">Qty</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="any"
+                                                        value={Number.isNaN(item.qty) ? '' : item.qty}
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateQty(item.tempId, e.target.value)}
+                                                        className={cn(
+                                                            "h-8 w-28 text-right text-xs bg-background border-primary/20",
+                                                            (typeof item.qty === 'string' ? parseFloat(item.qty) : item.qty) === 0 && "text-destructive font-bold border-destructive bg-destructive/10"
+                                                        )}
+                                                    />
+                                                    <span className="text-[10px] text-muted-foreground w-12 font-medium uppercase px-1">{item.unit}</span>
+                                                </div>
+                                                {item.qty && !isNaN(typeof item.qty === 'string' ? parseFloat(item.qty) : item.qty) ? (
+                                                    <p className="text-[9px] text-blue-600/70 italic text-right pr-6 mt-0.5">
+                                                        ~ {formatRecipeQty(typeof item.qty === 'string' ? parseFloat(item.qty) : item.qty, item.unit).stringValue} {formatRecipeQty(typeof item.qty === 'string' ? parseFloat(item.qty) : item.qty, item.unit).unit}
+                                                    </p>
+                                                ) : null}
+                                            </div>
+
+                                            <div className="flex gap-1 border-l pl-3">
+                                                <CameraCapturePurchase
+                                                    onCapture={(photoUrl) => updatePhoto(item.tempId, photoUrl)}
+                                                    currentImage={item.photoUrl}
+                                                    onRemove={() => removePhoto(item.tempId)}
                                                 />
-                                                <span className="text-xs text-muted-foreground w-8">{item.unit}</span>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => removeItem(item.tempId)}
+                                                    title="Hapus"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-1">
-                                            <Button
-                                                type="button"
-                                                variant={item.qty === 0 ? "destructive" : "outline"}
-                                                size="icon"
-                                                className="h-7 w-7"
-                                                onClick={() => updateQty(item.id, item.qty === 0 ? 1 : 0)}
-                                                title={item.qty === 0 ? "Batalkan status Habis" : "Tandai Stok Habis / Kosong"}
-                                            >
-                                                <Ban className="h-4 w-4" />
-                                            </Button>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        type="button"
-                                                        variant={item.memo ? "default" : "ghost"}
-                                                        size="icon"
-                                                        className={cn("h-7 w-7", item.memo ? "text-primary-foreground" : "text-muted-foreground")}
-                                                        title="Tambah Catatan / Alasan"
-                                                    >
-                                                        <MessageSquare className="h-4 w-4" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-60 p-3">
-                                                    <div className="space-y-2">
-                                                        <Label className="text-xs">Catatan per Item</Label>
-                                                        <Input
-                                                            value={item.memo || ''}
-                                                            onChange={(e) => updateMemo(item.id, e.target.value)}
-                                                            placeholder="Contoh: Stok Pasar Habis"
-                                                            className="h-8 text-xs"
-                                                        />
-                                                    </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                            <CameraCapturePurchase
-                                                onCapture={(photoUrl) => updatePhoto(item.id, photoUrl)}
-                                                currentImage={item.photoUrl}
-                                                onRemove={() => removePhoto(item.id)}
-                                            />
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                onClick={() => removeItem(item.id)}
-                                                title="Hapus dari list"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 pt-3 border-t border-dashed flex items-center gap-2">
+                                        <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                                        <Input
+                                            value={item.memo || ''}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMemo(item.tempId, e.target.value)}
+                                            placeholder="Nama toko atau catatan porsi..."
+                                            className="h-7 text-[11px] bg-muted/30 border-none focus-visible:ring-1"
+                                        />
                                     </div>
                                 </div>
-                            ))}
-                            {selectedItems.length === 0 && (
-                                <div className="flex flex-col items-center justify-center h-full py-4 text-muted-foreground opacity-50">
-                                    <ShoppingCart className="h-8 w-8 mb-2" />
-                                    <span className="text-sm">List Kosong (Barang Habis Semua?)</span>
-                                </div>
-                            )}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">
-                            * Jika barang tidak ada, klik icon sampah untuk menghapus dari list pembelian.
-                        </p>
-                    </div>
+                            );
 
-                    <DialogFooter>
+                            return (
+                                <>
+                                    {masakItems.length > 0 && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 pb-1 border-b">
+                                                <Utensils className="h-3.5 w-3.5 text-blue-600" />
+                                                <span className="text-xs font-bold uppercase tracking-wider text-blue-700">Menu Masak</span>
+                                                <span className="text-[10px] text-muted-foreground ml-auto">{masakItems.length} item</span>
+                                            </div>
+                                            {masakItems.map(renderItem)}
+                                        </div>
+                                    )}
+                                    {keringItems.length > 0 && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 pb-1 border-b">
+                                                <Package className="h-3.5 w-3.5 text-amber-600" />
+                                                <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Menu Kering</span>
+                                                <span className="text-[10px] text-muted-foreground ml-auto">{keringItems.length} item</span>
+                                            </div>
+                                            {keringItems.map(renderItem)}
+                                        </div>
+                                    )}
+                                    {visibleItems.length === 0 && (
+                                        <div className="flex flex-col items-center justify-center h-full py-4 text-muted-foreground opacity-50">
+                                            <ShoppingCart className="h-8 w-8 mb-2" />
+                                            <span className="text-sm">List Kosong (Barang Habis Semua?)</span>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                        * Jika barang tidak ada, klik icon sampah untuk menghapus dari list pembelian.
+                    </p>
+
+                    <DialogFooter className="mt-6">
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Batal
                         </Button>

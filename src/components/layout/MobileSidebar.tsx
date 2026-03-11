@@ -21,6 +21,7 @@ export function MobileSidebar() {
     const { hasPermission, role, signOut, profile } = useAuth();
 
     const visibleItems = navItems.filter(item => {
+        if (role === 'SUPER_ADMIN') return true;
         if (item.excludedRoles && role && item.excludedRoles.includes(role)) return false;
         if (item.roles && role && !item.roles.includes(role)) return false;
         if (item.permission && !hasPermission(item.permission)) return false;
@@ -30,7 +31,7 @@ export function MobileSidebar() {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="lg:hidden">
                     <Menu className="h-5 w-5" />
                 </Button>
             </SheetTrigger>

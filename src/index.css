@@ -144,12 +144,18 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
   }
 }
 
 @layer components {
+
   /* Card hover effect */
   .card-hover {
     @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
@@ -245,6 +251,7 @@
       opacity: 0;
       transform: translateY(8px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -257,9 +264,12 @@
   }
 
   @keyframes pulseWarning {
-    0%, 100% {
+
+    0%,
+    100% {
       background-color: hsl(38 92% 50% / 0.1);
     }
+
     50% {
       background-color: hsl(38 92% 50% / 0.2);
     }
@@ -274,5 +284,18 @@
   /* Monospace for numbers/codes */
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Hide number input spinners */
+  .no-spinner::-webkit-inner-spin-button,
+  .no-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    margin: 0 !important;
+  }
+
+  .no-spinner {
+    -moz-appearance: textfield !important;
+    appearance: none !important;
   }
 }

@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { sequelize } from '@/lib/sequelize';
+import '@/models'; // Force load all models and associations so sync creates all tables correctly
 import { User, Role, Ingredient, Recipe, RecipeIngredient, Menu, MenuIngredient } from '@/models';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
     try {
         await sequelize.authenticate();
-        console.log('Database connected.');
-
-        // WARNING: This wipes all data!
+        // WARNING: This WIPES all data!
         await sequelize.sync({ force: true });
 
         // --- 1. Seed Roles ---
@@ -21,7 +20,6 @@ export async function GET() {
             { id: 6, name: 'KEPALA_DAPUR' }
         ];
         await Role.bulkCreate(rolesData);
-
         // --- 2. Seed Users (with Fixed IDs for linking) ---
         const adminId = uuidv4();
         const giziId = uuidv4();
@@ -36,7 +34,6 @@ export async function GET() {
             { roleId: 6, email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
         ];
         await User.bulkCreate(demoUsers as any);
-
         // --- 3. Seed Ingredients ---
         const berasId = uuidv4();
         const telurId = uuidv4();
@@ -51,7 +48,6 @@ export async function GET() {
             { name: 'Garam', unit: 'kg', minimumStock: 5, currentStock: 10 },
             { name: 'Minyak Goreng', unit: 'liter', minimumStock: 20, currentStock: 30 },
         ]);
-
         // --- 4. SCENARIO: RECIPES (KAMUS RESEP) ---
         // Create standard recipes (SOP) that match the kinds of meals served
 
@@ -167,109 +163,127 @@ export async function GET() {
             const recipeIngredients = recipeData.ings.map(ing => ({
                 recipeId,
                 ingredientId: ing.id,
-                qtyPerPortion: ing.qty
+                qtyBesar: ing.qty,
+                qtyKecil: ing.qty * 0.7,
+                qtyBumil: ing.qty * 1.25,
+                qtyBalita: ing.qty * 0.5
             }));
 
             await RecipeIngredient.bulkCreate(recipeIngredients);
         }
+        // --- 5. SCENARIO: HISTORY & EVALUASI ---
+        // 1 riwayat hanya 1 menu masak (Ompreng)
+        // 1 riwayat hanya 1 menu kering (Kering)
+        // 1 riwayat punya 2 menu (Ompreng & Kering)
 
-        // --- 5. SCENARIO: HISTORY (10 RIWAYAT MASAK) ---
-        // We will create 10 menus going backwards from Feb 19, 2026.
-        // To test statistics, we'll use repeating menu names like "Nasi Goreng Spesial" and "Sop Ayam".
+        const today = new Date();
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1); tomorrow.setHours(8, 0, 0, 0);
 
-        const menuNames = [
-            "Nasi Goreng Spesial", // Will use this multiple times
-            "Sop Ayam Kampung",
-            "Nasi Goreng Spesial",
-            "Ayam Bakar Madu",
-            "Nasi Goreng Spesial",
-            "Sop Ayam Kampung",
-            "Tumis Kangkung",
-            "Nasi Goreng Spesial",
-            "Ayam Bakar Madu",
-            "Nasi Goreng Spesial"
-        ];
-
-        let currentDate = new Date('2026-02-19T08:00:00');
-
-        for (let i = 0; i < 10; i++) {
+        const createMenuData = async (
+            name: string,
+            date: Date,
+            type: 'OMPRENG' | 'KERING',
+            counts: { besar: number, kecil: number, bumil: number, balita: number },
+            evaluated: boolean
+        ) => {
             const mId = uuidv4();
-            const name = menuNames[i];
-
             await Menu.create({
                 id: mId,
-                name: name,
-                description: `Masakan harian untuk ${name}`,
-                menuDate: new Date(currentDate),
-                portionCount: 50 + Math.floor(Math.random() * 50), // 50-100 porsi
+                name,
+                description: `Skenario test untuk ${name}`,
+                menuDate: date,
+                countBesar: counts.besar,
+                countKecil: counts.kecil,
+                countBumil: counts.bumil,
+                countBalita: counts.balita,
+                menuType: type,
                 createdBy: chefId,
-                evaluatorId: i % 3 !== 0 ? giziId : undefined, // About 2/3 of them evaluated
+                evaluatorId: evaluated ? giziId : undefined,
             });
+
+            const totalPax = (counts.besar || 0) + (counts.kecil || 0) + (counts.bumil || 0) + (counts.balita || 0) || 1;
 
             // Random ingredients for this menu
             const ingredientsToAdd = [
-                { ingredientId: berasId, qty: 10 + Math.random() * 5 },
-                { ingredientId: telurId, qty: 50 + Math.random() * 20 },
-                { ingredientId: kecapId, qty: 1 + Math.random() * 1 },
-                { ingredientId: ayamId, qty: 5 + Math.random() * 5 },
+                { ingredientId: berasId, qty: 10 + Math.random() * 5, unit: 'kg' },
+                { ingredientId: telurId, qty: totalPax * (0.5 + Math.random() * 0.5), unit: 'butir' },
+                { ingredientId: kecapId, qty: 1 + Math.random() * 1, unit: 'liter' },
+                { ingredientId: ayamId, qty: 5 + Math.random() * 5, unit: 'kg' },
             ];
 
-            const evalStatuses: ('PAS' | 'KURANG' | 'BERLEBIH')[] = ['PAS', 'PAS', 'KURANG', 'BERLEBIH', 'PAS'];
-
             for (const ing of ingredientsToAdd) {
-                // If it's evaluated (evaluatorId is set), give it a random status
-                const isEvaluated = i % 3 !== 0;
                 let evStatus = undefined;
-                let evNote: string | undefined = undefined;
+                let evNote = undefined;
 
-                if (isEvaluated) {
-                    evStatus = evalStatuses[Math.floor(Math.random() * evalStatuses.length)];
+                if (evaluated) {
+                    const statuses = ['PAS', 'KURANG', 'BERLEBIH'];
+                    evStatus = statuses[Math.floor(Math.random() * statuses.length)];
                     if (evStatus === 'KURANG') evNote = "Bahan ternyata kurang di lapangan";
                     if (evStatus === 'BERLEBIH') evNote = "Ada sisa lumayan banyak";
                 }
+
+
+                const gramasiValue = Math.round((ing.qty / totalPax) * 1000) / 1000;
 
                 await MenuIngredient.create({
                     id: uuidv4(),
                     menuId: mId,
                     ingredientId: ing.ingredientId,
                     qtyNeeded: Math.round(ing.qty * 10) / 10,
+                    gramasi: gramasiValue,
                     evaluationStatus: evStatus as any,
                     evaluationNote: evNote
                 });
             }
+        };
 
-            // Go back 1-3 days for the next record
-            currentDate.setDate(currentDate.getDate() - (1 + Math.floor(Math.random() * 3)));
+        // Create 12 days of history
+        for (let i = 12; i >= 1; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            date.setHours(8, 0, 0, 0);
+
+            // Scenarios:
+            // 1, 4, 7, 10: Only Ompreng
+            // 2, 5, 8, 11: Only Kering
+            // 3, 6, 9, 12: Both (Gabungan)
+
+            const menuNames = [
+                "Nasi Goreng Spesial", "Sop Ayam Kampung", "Ayam Bakar Madu",
+                "Telur Balado", "Soto Ayam Bening", "Opor Ayam"
+            ];
+            const keringNames = [
+                "Susu UHT & Biskuit", "Puding Buah", "Sari Kacang Hijau", "Roti Kasur"
+            ];
+
+            const omprengName = menuNames[i % menuNames.length];
+            const keringName = keringNames[i % keringNames.length];
+            const counts = { besar: 100, kecil: 50, bumil: 10, balita: 15 };
+            const isEvaluated = i > 2; // Older ones are evaluated
+
+            if (i % 3 === 1 || i % 3 === 0) {
+                await createMenuData(omprengName, date, 'OMPRENG', counts, isEvaluated);
+            }
+            if (i % 3 === 2 || i % 3 === 0) {
+                await createMenuData(keringName, date, 'KERING', counts, isEvaluated);
+            }
         }
 
-        // Add 1 upcoming menu (Not evaluated yet) so we can click the "Statistik" and "Evaluasi" button for it
-        const upcomingMenuId = uuidv4();
-        await Menu.create({
-            id: upcomingMenuId,
-            name: "Nasi Goreng Spesial", // Same name to trigger stats
-            description: "Persiapan masak untuk besok",
-            menuDate: new Date('2026-02-21T08:00:00'),
-            portionCount: 80,
-            createdBy: chefId,
-            evaluatorId: undefined
-        });
-        await MenuIngredient.bulkCreate([
-            { menuId: upcomingMenuId, ingredientId: berasId, qtyNeeded: 12 },
-            { menuId: upcomingMenuId, ingredientId: telurId, qtyNeeded: 80 },
-            { menuId: upcomingMenuId, ingredientId: kecapId, qtyNeeded: 1.5 },
-            { menuId: upcomingMenuId, ingredientId: ayamId, qtyNeeded: 8 },
-        ]);
-
+        // Tomorrow: 1 Upcoming Masak
+        await createMenuData("Soto Ayam Bening", tomorrow, 'OMPRENG', { besar: 120, kecil: 30, bumil: 5, balita: 10 }, false);
         return NextResponse.json({
             success: true,
-            message: 'Database purged and seeded with 10 historical menus with repeating names.',
+            message: 'Database purged and seeded with explicit history and evaluation scenarios.',
             scenarios: {
                 users: demoUsers.map(u => ({ email: u.email, role: u.roleId }))
             }
         });
 
     } catch (error: any) {
-        console.error('Seeding error:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        console.error('Seeding error details:', error);
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            console.error('Duplicate keys:', error.errors.map((e: any) => e.message));
+        }
+        return NextResponse.json({ success: false, error: error.message, stack: error.stack }, { status: 500 });
     }
 }

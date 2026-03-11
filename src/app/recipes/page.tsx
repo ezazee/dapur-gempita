@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Eye, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, BookOpen, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getRecipes, deleteRecipe } from '@/app/actions/recipes';
 import { toast } from 'sonner';
+import { cookingStepsSummary } from '@/components/shared/CookingSteps';
+import { AlertConfirm } from '@/components/shared/AlertConfirm';
 import {
     Table,
     TableBody,
@@ -26,9 +28,13 @@ export default function RecipesPage() {
     const [recipes, setRecipes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
     const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
+    const [recipeToEdit, setRecipeToEdit] = useState<any>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     const canCreate = ['AHLI_GIZI', 'SUPER_ADMIN'].includes(role || '');
 
@@ -49,13 +55,20 @@ export default function RecipesPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Hapus master resep ini?')) return;
-        const res = await deleteRecipe(id);
-        if (res.success) {
-            toast.success('Resep berhasil dihapus');
-            fetchRecipes();
-        } else {
-            toast.error('Gagal menghapus resep');
+        setLoading(true);
+        try {
+            const res = await deleteRecipe(id);
+            if (res.success) {
+                toast.success('Resep berhasil dihapus');
+                fetchRecipes();
+            } else {
+                toast.error('Gagal menghapus resep');
+            }
+        } catch (error) {
+            toast.error('Terjadi kesalahan');
+        } finally {
+            setLoading(false);
+            setDeleteId(null);
         }
     };
 
@@ -64,13 +77,41 @@ export default function RecipesPage() {
         setIsDetailOpen(true);
     };
 
-    const filteredRecipes = recipes.filter(r =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.description && r.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    const handleEdit = (recipe: any) => {
+        setRecipeToEdit(recipe);
+        setIsCreateOpen(true);
+    };
+
+    const handleCreate = () => {
+        setRecipeToEdit(null);
+        setIsCreateOpen(true);
+    };
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    const filteredRecipes = recipes.filter(r => {
+        const queryTerms = searchQuery.toLowerCase().trim().split(/\s+/).filter(t => t !== '');
+        if (queryTerms.length === 0) return true;
+
+        const recipeName = r.name.toLowerCase();
+        const recipeDesc = (r.description || '').toLowerCase();
+
+        // Must match all query terms (fuzzy and order-independent)
+        return queryTerms.every(term =>
+            recipeName.includes(term) || recipeDesc.includes(term)
+        );
+    });
+
+    const totalPages = Math.ceil(filteredRecipes.length / itemsPerPage) || 1;
+    const paginatedRecipes = filteredRecipes.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     );
 
     return (
-        <RouteGuard allowedRoles={['SUPER_ADMIN', 'AHLI_GIZI', 'KEPALA_DAPUR']}>
+        <RouteGuard allowedRoles={['SUPER_ADMIN', 'AHLI_GIZI', 'KEPALA_DAPUR', 'CHEF']}>
             <DashboardLayout
                 title="Kamus Resep (Standar)"
                 description="Kumpulan resep standar dan takaran bahan per porsi."
@@ -86,7 +127,7 @@ export default function RecipesPage() {
                         />
                     </div>
                     {canCreate && (
-                        <Button onClick={() => setIsCreateOpen(true)}>
+                        <Button onClick={handleCreate}>
                             <Plus className="mr-2 h-4 w-4" />
                             Tambah Resep Standar
                         </Button>
@@ -122,12 +163,14 @@ export default function RecipesPage() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredRecipes.map((recipe, index) => (
+                                paginatedRecipes.map((recipe, index) => (
                                     <TableRow key={recipe.id}>
-                                        <TableCell className="text-center font-medium">{index + 1}</TableCell>
+                                        <TableCell className="text-center font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                                         <TableCell className="font-semibold">{recipe.name}</TableCell>
-                                        <TableCell className="hidden md:table-cell text-muted-foreground max-w-[300px] truncate">
-                                            {recipe.description || '-'}
+                                        <TableCell className="hidden md:table-cell text-muted-foreground max-w-[300px]">
+                                            <span className="inline-flex items-center gap-1 text-xs">
+                                                {recipe.description ? cookingStepsSummary(recipe.description) : '-'}
+                                            </span>
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
@@ -147,14 +190,24 @@ export default function RecipesPage() {
                                                 <Eye className="h-4 w-4 text-primary" />
                                             </Button>
                                             {canCreate && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    title="Hapus"
-                                                    onClick={() => handleDelete(recipe.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title="Edit"
+                                                        onClick={() => handleEdit(recipe)}
+                                                    >
+                                                        <Pencil className="h-4 w-4 text-blue-500" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        title="Hapus"
+                                                        onClick={() => setDeleteId(recipe.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -164,16 +217,60 @@ export default function RecipesPage() {
                     </Table>
                 </div>
 
+                {totalPages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between mt-4 border-t pt-4 gap-4">
+                        <div className="text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
+                            Menampilkan {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredRecipes.length)} dari {filteredRecipes.length} resep
+                        </div>
+                        <div className="flex items-center space-x-2 order-1 sm:order-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 px-2 sm:px-3"
+                            >
+                                <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Sebelumnya</span>
+                            </Button>
+                            <div className="text-xs sm:text-sm font-medium px-2">
+                                Halaman {currentPage} / {totalPages}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 px-2 sm:px-3"
+                            >
+                                <span className="hidden sm:inline">Selanjutnya</span>
+                                <ChevronRight className="h-4 w-4 sm:ml-1" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 <CreateRecipeDialog
                     open={isCreateOpen}
                     onOpenChange={setIsCreateOpen}
                     onSuccess={fetchRecipes}
+                    recipeToEdit={recipeToEdit}
                 />
 
                 <RecipeDetailDialog
                     open={isDetailOpen}
                     onOpenChange={setIsDetailOpen}
                     recipe={selectedRecipe}
+                />
+
+                <AlertConfirm
+                    open={!!deleteId}
+                    onOpenChange={(open) => !open && setDeleteId(null)}
+                    title="Hapus Resep"
+                    description="Apakah Anda yakin ingin menghapus resep standar ini? Data yang sudah dihapus tidak bisa dikembalikan."
+                    confirmText="Hapus"
+                    variant="destructive"
+                    onConfirm={() => deleteId && handleDelete(deleteId)}
                 />
             </DashboardLayout>
         </RouteGuard>

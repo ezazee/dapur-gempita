@@ -27,7 +27,7 @@ export async function login(email: string, password: string) {
         }
 
         // Set session cookie
-        console.log(`Login attempt for ${email}. Found user: ${user.name}, Role: ${user.role?.name}`); // DEBUG LOG
+// DEBUG LOG
         const sessionData = JSON.stringify({
             id: user.id,
             email: user.email,

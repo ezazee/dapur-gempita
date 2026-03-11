@@ -6,9 +6,11 @@ export const ROUTE_PERMISSIONS: Record<string, AppRole[]> = {
     '/menus': ['SUPER_ADMIN', 'ADMIN', 'AHLI_GIZI', 'KEUANGAN', 'ASLAP', 'KEPALA_DAPUR'],
     '/purchases': ['SUPER_ADMIN', 'ADMIN', 'KEUANGAN'],
     '/receipts': ['SUPER_ADMIN', 'ADMIN', 'ASLAP'],
+    '/ingredients': ['SUPER_ADMIN', 'ADMIN', 'ASLAP', 'CHEF'],
     '/productions': ['SUPER_ADMIN', 'ADMIN', 'CHEF'],
-    '/stock-movements': ['SUPER_ADMIN', 'ADMIN'],
+    '/stock-movements': ['SUPER_ADMIN', 'ADMIN', 'CHEF'],
     '/reports': ['SUPER_ADMIN', 'ADMIN', 'KEPALA_DAPUR'],
+    '/recipes': ['SUPER_ADMIN', 'ADMIN', 'KEPALA_DAPUR', 'CHEF'],
     '/users': ['SUPER_ADMIN'],
     '/audit-logs': ['SUPER_ADMIN', 'ADMIN'],
 };

@@ -4,6 +4,7 @@ import { Menu, Ingredient, MenuIngredient, Role, sequelize } from '@/models';
 import { getSession } from './auth';
 import { revalidatePath } from 'next/cache';
 import { Op } from 'sequelize';
+import { denormalizeQty } from '@/lib/utils';
 
 export async function getMenus(startDate?: Date, endDate?: Date) {
     try {
@@ -31,13 +32,19 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             };
         }
 
+        const { Production } = await import('@/models');
         const menus = await Menu.findAll({
             where: whereClause,
             include: [
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['qtyNeeded', 'gramasi', 'evaluationStatus', 'evaluationNote'] }
+                    through: { attributes: ['id', 'qtyNeeded', 'gramasi', 'qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita', 'evaluationStatus', 'evaluationNote'] }
+                },
+                {
+                    model: Production,
+                    as: 'productions',
+                    attributes: ['id']
                 }
             ],
             order: [['menuDate', 'DESC']]
@@ -48,18 +55,32 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             id: m.id,
             name: m.name,
             description: m.description,
+            menuType: m.menuType || 'OMPRENG',
+            nutritionData: m.nutritionData || {},
             menuDate: m.menuDate.toISOString(),
-            portionCount: m.portionCount,
+            countKecil: m.countKecil,
+            countBesar: m.countBesar,
+            countBumil: m.countBumil,
+            countBalita: m.countBalita,
             evaluation: m.evaluation,
             rating: m.rating,
             evaluatorId: m.evaluatorId,
+            editHistory: m.editHistory || [],
+            productionCount: m.productions?.length || 0,
             ingredients: m.ingredients.map((i: any) => ({
                 id: i.id,
+                miId: (i as any).MenuIngredient?.id,
+                menuId: m.id,
                 name: i.name,
                 unit: i.unit,
+                currentStock: i.currentStock,
                 // Access the join table attributes via the Model name (MenuIngredient)
                 qtyNeeded: (i as any).MenuIngredient?.qtyNeeded || 0,
                 gramasi: (i as any).MenuIngredient?.gramasi || null,
+                qtyBesar: (i as any).MenuIngredient?.qtyBesar || 0,
+                qtyKecil: (i as any).MenuIngredient?.qtyKecil || 0,
+                qtyBumil: (i as any).MenuIngredient?.qtyBumil || 0,
+                qtyBalita: (i as any).MenuIngredient?.qtyBalita || 0,
                 evaluationStatus: (i as any).MenuIngredient?.evaluationStatus || null,
                 evaluationNote: (i as any).MenuIngredient?.evaluationNote || null,
             }))
@@ -70,7 +91,27 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
     }
 }
 
-export async function createMenu(data: { name: string; description: string; menuDate: Date; portionCount: number; ingredients: { name: string; qty: number; gramasi?: number; unit: string }[] }) {
+export async function createMenu(data: {
+    name: string;
+    description: string;
+    menuType: 'OMPRENG' | 'KERING';
+    nutritionData?: any;
+    menuDate: Date;
+    countKecil: number;
+    countBesar: number;
+    countBumil: number;
+    countBalita: number;
+    ingredients: {
+        name: string;
+        qty: number;
+        gramasi?: number;
+        qtyBesar?: number;
+        qtyKecil?: number;
+        qtyBumil?: number;
+        qtyBalita?: number;
+        unit: string
+    }[]
+}) {
     const session = await getSession();
     if (!session) return { error: 'Unauthorized' };
 
@@ -83,8 +124,13 @@ export async function createMenu(data: { name: string; description: string; menu
         const menu = await Menu.create({
             name: data.name,
             description: data.description,
+            menuType: data.menuType || 'OMPRENG',
+            nutritionData: data.nutritionData,
             menuDate: data.menuDate,
-            portionCount: data.portionCount || 1,
+            countKecil: data.countKecil || 0,
+            countBesar: data.countBesar || 0,
+            countBumil: data.countBumil || 0,
+            countBalita: data.countBalita || 0,
             createdBy: session.id
         });
 
@@ -105,18 +151,38 @@ export async function createMenu(data: { name: string; description: string; menu
                         name: item.name,
                         unit: item.unit,
                         currentStock: 0,
-                        minimumStock: 10 // Default
+                        minimumStock: 10, // Default
+                        category: data.menuType === 'KERING' ? 'KERING' : 'MASAK'
                     });
                 }
 
+                let finalQty = item.qty;
+                let finalGramasi = item.gramasi;
+                let finalQtyBesar = item.qtyBesar;
+                let finalQtyKecil = item.qtyKecil;
+                let finalQtyBumil = item.qtyBumil;
+                let finalQtyBalita = item.qtyBalita;
+
+                if (item.unit && ingredient.unit && item.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
+                    finalQty = denormalizeQty(item.qty, item.unit, ingredient.unit);
+                    if (item.gramasi) finalGramasi = denormalizeQty(item.gramasi, item.unit, ingredient.unit);
+                    if (item.qtyBesar) finalQtyBesar = denormalizeQty(item.qtyBesar, item.unit, ingredient.unit);
+                    if (item.qtyKecil) finalQtyKecil = denormalizeQty(item.qtyKecil, item.unit, ingredient.unit);
+                    if (item.qtyBumil) finalQtyBumil = denormalizeQty(item.qtyBumil, item.unit, ingredient.unit);
+                    if (item.qtyBalita) finalQtyBalita = denormalizeQty(item.qtyBalita, item.unit, ingredient.unit);
+                }
+
                 // Link to Menu
-                // Note: We currently don't store gramasi explicitly in MenuIngredient (only qtyNeeded which is Total)
-                // But the UI reverse calculates it from Total / PortionCount.
+                // Ensure granular portions are recorded for later editing/viewing
                 await MenuIngredient.create({
                     menuId: menu.id,
                     ingredientId: ingredient.id,
-                    qtyNeeded: item.qty,
-                    gramasi: item.gramasi
+                    qtyNeeded: finalQty,
+                    gramasi: finalGramasi,
+                    qtyBesar: finalQtyBesar,
+                    qtyKecil: finalQtyKecil,
+                    qtyBumil: finalQtyBumil,
+                    qtyBalita: finalQtyBalita
                 });
             }
         }
@@ -146,12 +212,19 @@ export async function deleteMenu(id: string) {
 
 
 // For Ingredient Search in Menu Form
-export async function searchIngredients(query: string) {
+export async function searchIngredients(query: string, category?: string) {
     try {
+        const fuzzyQuery = query.trim().replace(/\s+/g, '%');
+        const whereClause: any = {
+            name: { [Op.iLike]: `%${fuzzyQuery}%` }
+        };
+
+        if (category) {
+            whereClause.category = category;
+        }
+
         const items = await Ingredient.findAll({
-            where: {
-                name: { [Op.iLike]: `%${query}%` }
-            },
+            where: whereClause,
             limit: 10,
             raw: true
         });
@@ -161,7 +234,27 @@ export async function searchIngredients(query: string) {
     }
 }
 
-export async function updateMenu(id: string, data: { name: string; description: string; menuDate: Date; portionCount: number; ingredients: { name: string; qty: number; gramasi?: number; unit: string }[] }) {
+export async function updateMenu(id: string, data: {
+    name: string;
+    description: string;
+    menuType: 'OMPRENG' | 'KERING';
+    nutritionData?: any;
+    menuDate: Date;
+    countKecil: number;
+    countBesar: number;
+    countBumil: number;
+    countBalita: number;
+    ingredients: {
+        name: string;
+        qty: number;
+        gramasi?: number;
+        unit: string;
+        qtyBesar?: number;
+        qtyKecil?: number;
+        qtyBumil?: number;
+        qtyBalita?: number;
+    }[]
+}) {
     const session = await getSession();
     if (!session || !['AHLI_GIZI', 'SUPER_ADMIN', 'CHEF'].includes(session.role)) {
         return { error: 'Permission denied' };
@@ -171,11 +264,25 @@ export async function updateMenu(id: string, data: { name: string; description: 
         const menu = await Menu.findByPk(id);
         if (!menu) return { error: 'Menu not found' };
 
+        const newHistoryEntry = {
+            timestamp: new Date().toISOString(),
+            editorName: session.name || session.email || 'Unknown User',
+            editorRole: session.role
+        };
+        const currentHistory = menu.editHistory && Array.isArray(menu.editHistory) ? menu.editHistory : [];
+        const updatedHistory = [...currentHistory, newHistoryEntry];
+
         await menu.update({
             name: data.name,
             description: data.description,
+            menuType: data.menuType || 'OMPRENG',
+            nutritionData: data.nutritionData,
             menuDate: data.menuDate,
-            portionCount: data.portionCount || 1,
+            countKecil: data.countKecil || 0,
+            countBesar: data.countBesar || 0,
+            countBumil: data.countBumil || 0,
+            countBalita: data.countBalita || 0,
+            editHistory: updatedHistory
         });
 
         // Replace ingredients: Destroy old links, create new ones
@@ -197,15 +304,36 @@ export async function updateMenu(id: string, data: { name: string; description: 
                         name: item.name,
                         unit: item.unit,
                         currentStock: 0,
-                        minimumStock: 10
+                        minimumStock: 10,
+                        category: data.menuType === 'KERING' ? 'KERING' : 'MASAK'
                     });
+                }
+
+                let finalQty = item.qty;
+                let finalGramasi = item.gramasi;
+                let finalQtyBesar = item.qtyBesar;
+                let finalQtyKecil = item.qtyKecil;
+                let finalQtyBumil = item.qtyBumil;
+                let finalQtyBalita = item.qtyBalita;
+
+                if (item.unit && ingredient.unit && item.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
+                    finalQty = denormalizeQty(item.qty, item.unit, ingredient.unit);
+                    if (item.gramasi) finalGramasi = denormalizeQty(item.gramasi, item.unit, ingredient.unit);
+                    if (item.qtyBesar) finalQtyBesar = denormalizeQty(item.qtyBesar, item.unit, ingredient.unit);
+                    if (item.qtyKecil) finalQtyKecil = denormalizeQty(item.qtyKecil, item.unit, ingredient.unit);
+                    if (item.qtyBumil) finalQtyBumil = denormalizeQty(item.qtyBumil, item.unit, ingredient.unit);
+                    if (item.qtyBalita) finalQtyBalita = denormalizeQty(item.qtyBalita, item.unit, ingredient.unit);
                 }
 
                 await MenuIngredient.create({
                     menuId: id,
                     ingredientId: ingredient.id,
-                    qtyNeeded: item.qty,
-                    gramasi: item.gramasi
+                    qtyNeeded: finalQty,
+                    gramasi: finalGramasi,
+                    qtyBesar: finalQtyBesar,
+                    qtyKecil: finalQtyKecil,
+                    qtyBumil: finalQtyBumil,
+                    qtyBalita: finalQtyBalita
                 });
             }
         }
@@ -241,19 +369,23 @@ export async function getMenuIngredientsForDate(date: Date) {
             ]
         });
 
-        // Aggregate ingredients
-        const aggregated: Record<string, { id: string; name: string; unit: string; qty: number }> = {};
+        // Aggregate ingredients separated by menu type
+        const aggregated: Record<string, { id: string; name: string; unit: string; qty: number; menuType?: string; currentStock?: number }> = {};
 
         menus.forEach((menu: any) => {
             menu.ingredients.forEach((ing: any) => {
-                if (aggregated[ing.id]) {
-                    aggregated[ing.id].qty += (ing.MenuIngredient?.qtyNeeded || 0);
+                const key = `${ing.id}-${menu.menuType}`;
+
+                if (aggregated[key]) {
+                    aggregated[key].qty += (ing.MenuIngredient?.qtyNeeded || 0);
                 } else {
-                    aggregated[ing.id] = {
+                    aggregated[key] = {
                         id: ing.id,
                         name: ing.name,
                         unit: ing.unit,
-                        qty: ing.MenuIngredient?.qtyNeeded || 0
+                        qty: ing.MenuIngredient?.qtyNeeded || 0,
+                        currentStock: ing.currentStock || 0,
+                        menuType: menu.menuType
                     };
                 }
             });
@@ -266,7 +398,7 @@ export async function getMenuIngredientsForDate(date: Date) {
     }
 }
 
-export async function evaluateMenuIngredients(menuId: string, evaluations: { ingredientId: string; evaluationStatus: 'PAS' | 'KURANG' | 'BERLEBIH'; evaluationNote?: string }[]) {
+export async function evaluateMenuIngredients(menuId: string, evaluations: { ingredientId?: string; miId?: string; evaluationStatus: 'PAS' | 'KURANG' | 'BERLEBIH'; evaluationNote?: string }[]) {
     const session = await getSession();
     if (!session || !['AHLI_GIZI', 'SUPER_ADMIN'].includes(session.role)) {
         return { error: 'Permission denied' };
@@ -278,12 +410,17 @@ export async function evaluateMenuIngredients(menuId: string, evaluations: { ing
 
         // Process evaluations for each ingredient
         for (const evalData of evaluations) {
-            const menuIngredient = await MenuIngredient.findOne({
-                where: {
-                    menuId: menuId,
-                    ingredientId: evalData.ingredientId
-                }
-            });
+            let menuIngredient = null;
+            if (evalData.miId) {
+                menuIngredient = await MenuIngredient.findByPk(evalData.miId);
+            } else if (evalData.ingredientId) {
+                menuIngredient = await MenuIngredient.findOne({
+                    where: {
+                        menuId: menuId,
+                        ingredientId: evalData.ingredientId
+                    }
+                });
+            }
 
             if (menuIngredient) {
                 await menuIngredient.update({
@@ -325,7 +462,7 @@ export async function getMenuEvaluationStats(menuName: string, currentMenuDate: 
             include: [{
                 model: Ingredient,
                 as: 'ingredients',
-                through: { attributes: ['qtyNeeded', 'gramasi', 'evaluationStatus', 'evaluationNote'] }
+                through: { attributes: ['id', 'qtyNeeded', 'gramasi', 'qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita', 'evaluationStatus', 'evaluationNote'] }
             }]
         });
 
@@ -364,7 +501,10 @@ export async function getMenuEvaluationStats(menuName: string, currentMenuDate: 
             success: true,
             data: {
                 date: historyMenu.get('menuDate'),
-                portionCount: historyMenu.get('portionCount'),
+                countKecil: historyMenu.get('countKecil'),
+                countBesar: historyMenu.get('countBesar'),
+                countBumil: historyMenu.get('countBumil'),
+                countBalita: historyMenu.get('countBalita'),
                 stats: {
                     total,
                     pas,

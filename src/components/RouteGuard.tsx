@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { isRouteAllowed } from '@/lib/routePermissions';
 import { AppRole } from '@/hooks/useAuth';
 
 interface RouteGuardProps {
@@ -17,12 +16,13 @@ export function RouteGuard({ children, allowedRoles, redirectTo = '/' }: RouteGu
     const router = useRouter();
 
     useEffect(() => {
-        if (!loading && role && !allowedRoles.includes(role)) {
+        if (loading) return;
+
+        if (!role || !allowedRoles.includes(role)) {
             router.replace(redirectTo);
         }
     }, [role, loading, allowedRoles, redirectTo, router]);
 
-    // Show nothing while checking or if unauthorized
     if (loading || !role || !allowedRoles.includes(role)) {
         return null;
     }

@@ -6,6 +6,7 @@ export interface PurchaseItemAttributes {
     purchaseId: string;
     ingredientId: string;
     estimatedQty: number;
+    targetQty?: number; // Added: To track Ahli Gizi's requirement
     photoUrl?: string; // Optional per item
     memo?: string; // Reason for qty change/shortage
     createdAt?: Date;
@@ -19,6 +20,7 @@ class PurchaseItem extends Model<PurchaseItemAttributes, PurchaseItemCreationAtt
     declare public purchaseId: string;
     declare public ingredientId: string;
     declare public estimatedQty: number;
+    declare public targetQty: number;
     declare public photoUrl: string;
     declare public memo: string;
     declare public readonly createdAt: Date;
@@ -46,6 +48,11 @@ PurchaseItem.init(
             type: DataTypes.DOUBLE,
             allowNull: false,
             field: 'estimated_qty'
+        },
+        targetQty: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+            field: 'target_qty'
         },
         photoUrl: {
             type: DataTypes.TEXT,

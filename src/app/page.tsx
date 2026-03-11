@@ -11,6 +11,9 @@ import { TodayMenu } from "@/components/dashboard/TodayMenu";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { ProductionDetailDialog } from "@/components/productions/ProductionDetailDialog";
+import { getProductionById } from "@/app/actions/productions";
 
 interface DashboardStats {
     totalIngredients: number;
@@ -41,6 +44,8 @@ interface MenuItem {
     name: string;
     portions: number;
     status: 'completed' | 'in_progress' | 'planned';
+    productionId?: string;
+    menuType?: string;
 }
 
 export default function Index() {
@@ -55,6 +60,8 @@ export default function Index() {
     const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
     const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
     const [todayMenuItems, setTodayMenuItems] = useState<MenuItem[]>([]);
+    const [selectedProduction, setSelectedProduction] = useState<any>(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
 
     const today = new Date().toLocaleDateString("id-ID", {
         weekday: "long",
@@ -95,36 +102,20 @@ export default function Index() {
             // Map Low Stock Items
             setLowStockItems(data.lowStockItems);
 
-            // Map Recent Activities
-            const activities: Activity[] = data.recentMovements.map((m: any) => {
-                const typeMap: Record<string, Activity['type']> = {
-                    IN: 'receipt',
-                    OUT: 'production',
-                    ADJUST: 'stock_adjust',
-                };
-                const typeLabels: Record<string, string> = {
-                    IN: 'Penerimaan',
-                    OUT: 'Produksi',
-                    ADJUST: 'Penyesuaian Stok',
-                };
-
-                return {
-                    id: m.id,
-                    type: typeMap[m.type as string] || 'stock_adjust',
-                    title: typeLabels[m.type as string] || 'Aktivitas',
-                    description: `${m.ingredientName || 'Unknown'} - ${m.qty} unit`,
-                    time: formatTimeAgo(new Date(m.createdAt)),
-                    status: 'completed',
-                };
-            });
-            setRecentActivities(activities);
+            setRecentActivities((data.recentActivities as any) || []);
 
             // Map Today Menu
             const menuItems: MenuItem[] = data.todayMenus.map((m: any) => ({
                 id: m.id,
                 name: m.name,
-                portions: 0,
-                status: 'planned' as const,
+                portions: m.portions,
+                menuType: m.menuType,
+                status: m.isCompleted ? 'completed' : 'planned' as const,
+                productionId: m.productionId,
+                countKecil: m.countKecil,
+                countBesar: m.countBesar,
+                countBumil: m.countBumil,
+                countBalita: m.countBalita
             }));
             setTodayMenuItems(menuItems);
 
@@ -133,6 +124,24 @@ export default function Index() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleViewDetail = async (productionId: string) => {
+        try {
+            const prod = await getProductionById(productionId);
+            if (prod) {
+                setSelectedProduction(prod);
+                setIsDetailOpen(true);
+            } else {
+                toast.error("Data produksi tidak ditemukan");
+            }
+        } catch (error) {
+            toast.error("Gagal mengambil detail produksi");
+        }
+    };
+
+    const handleViewHistory = (menuType: string) => {
+        router.push("/productions");
     };
 
     const formatTimeAgo = (date: Date) => {
@@ -150,7 +159,7 @@ export default function Index() {
 
     const statsCards = [
         {
-            title: "Total Bahan Baku",
+            title: "Total Barang",
             value: stats.totalIngredients,
             icon: <Package className="h-5 w-5" />,
         },
@@ -228,8 +237,15 @@ export default function Index() {
                                 <TodayMenu
                                     date={new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
                                     items={todayMenuItems}
+                                    onViewDetail={handleViewDetail}
+                                    onViewHistory={handleViewHistory}
                                 />
                                 <LowStockAlert items={lowStockItems} />
+                                <ProductionDetailDialog
+                                    open={isDetailOpen}
+                                    onOpenChange={setIsDetailOpen}
+                                    production={selectedProduction}
+                                />
                             </>
                         )}
                     </div>

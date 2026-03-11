@@ -4,7 +4,8 @@ import { sequelize } from '@/lib/sequelize';
 interface PurchaseAttributes {
     id: string;
     purchaseDate: Date;
-    status: 'draft' | 'waiting' | 'approved' | 'rejected';
+    status: 'draft' | 'requested' | 'waiting' | 'approved' | 'rejected' | 'incomplete';
+    purchaseType: 'FOOD' | 'OPERATIONAL';
     totalItems: number;
     note?: string;
     createdBy: string;
@@ -17,7 +18,8 @@ interface PurchaseCreationAttributes extends Optional<PurchaseAttributes, 'id' |
 class Purchase extends Model<PurchaseAttributes, PurchaseCreationAttributes> implements PurchaseAttributes {
     declare public id: string;
     declare public purchaseDate: Date;
-    declare public status: 'draft' | 'waiting' | 'approved' | 'rejected';
+    declare public status: 'draft' | 'requested' | 'waiting' | 'approved' | 'rejected' | 'incomplete';
+    declare public purchaseType: 'FOOD' | 'OPERATIONAL';
     declare public totalItems: number;
     declare public note: string;
     declare public createdBy: string;
@@ -38,9 +40,15 @@ Purchase.init(
             field: 'purchase_date'
         },
         status: {
-            type: DataTypes.ENUM('draft', 'waiting', 'approved', 'rejected'),
+            type: DataTypes.ENUM('draft', 'requested', 'waiting', 'approved', 'rejected', 'incomplete'),
             allowNull: false,
             defaultValue: 'draft',
+        },
+        purchaseType: {
+            type: DataTypes.ENUM('FOOD', 'OPERATIONAL'),
+            allowNull: false,
+            defaultValue: 'FOOD',
+            field: 'purchase_type'
         },
         totalItems: {
             type: DataTypes.INTEGER,

@@ -9,11 +9,7 @@ export default function NotFound() {
     // const location = useLocation(); // Not available in Next.js easily on server/client unless via usePathname
     // Using usePathname if needed, but for 404 we usually just show message.
 
-    useEffect(() => {
-        console.error(
-            "404 Error: User attempted to access non-existent route"
-        );
-    }, []);
+    // Hapus console.error() karena mengganggu log terminal
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background">

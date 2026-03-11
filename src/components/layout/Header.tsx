@@ -28,11 +28,11 @@ export function Header({ title, description }: HeaderProps) {
     : 'U';
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-3 lg:px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60 print:hidden overflow-hidden">
+      <div className="flex items-center gap-2 lg:gap-4 min-w-0">
         <MobileSidebar />
-        <div className="flex items-center gap-2">
-          <div className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg bg-transparent overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-transparent overflow-hidden">
             <Image
               src="/Logo.png"
               alt="Logo Gempita"
@@ -41,10 +41,10 @@ export function Header({ title, description }: HeaderProps) {
               className="object-contain"
             />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground truncate">{title}</h1>
             {description && (
-              <p className="text-sm text-muted-foreground hidden md:block">{description}</p>
+              <p className="text-xs text-muted-foreground hidden lg:block truncate">{description}</p>
             )}
           </div>
         </div>

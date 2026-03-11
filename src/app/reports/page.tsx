@@ -1,15 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileDown, FileSpreadsheet, Calendar, Image as ImageIcon } from 'lucide-react';
-import { getDailyReport } from '@/app/actions/reports';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import {
+    FileDown, FileSpreadsheet, Calendar, Image as ImageIcon,
+    Printer, AlertTriangle, CheckCircle2, ClipboardList,
+    ShoppingCart, Warehouse, Utensils, BarChart3, Search
+} from 'lucide-react';
+import { getReportData } from '@/app/actions/reports';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -17,6 +23,9 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { RouteGuard } from '@/components/RouteGuard';
+import { DateFilter } from '@/components/shared/DateFilter';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { cn, formatRecipeQty } from '@/lib/utils';
 
 // Helper to convert URL to Base64
 const urlToBase64 = (url: string): Promise<string> => {
@@ -40,23 +49,43 @@ const urlToBase64 = (url: string): Promise<string> => {
     });
 };
 
+type ReportType = 'combined' | 'purchase' | 'inventory' | 'evaluation' | 'menu';
+
 export default function ReportsPage() {
     const { role } = useAuth();
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    const [selectedDate, setSelectedDate] = useState(todayStr);
+    const todayStr = format(today, 'yyyy-MM-dd');
+
+    // Filters state
+    const [filterDate, setFilterDate] = useState({
+        startDate: format(new Date(), 'yyyy-MM-dd'),
+        endDate: format(new Date(), 'yyyy-MM-dd')
+    });
+    const [reportType, setReportType] = useState<ReportType>('combined');
     const [loading, setLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [exporting, setExporting] = useState(false);
+    const [logoBase64, setLogoBase64] = useState<string | null>(null);
+
+    // Pre-load logo for PDF
+    useEffect(() => {
+        urlToBase64('/Logo.png')
+            .then(base64 => setLogoBase64(base64))
+            .catch(err => console.error('Failed to load logo:', err));
+    }, []);
 
     const isReadOnly = role === 'KEPALA_DAPUR';
 
     const fetchReport = async () => {
         setLoading(true);
         try {
-            const result = await getDailyReport(selectedDate);
+            const result = await getReportData({
+                startDate: filterDate.startDate,
+                endDate: filterDate.endDate,
+                type: reportType
+            });
             if (result.error) {
                 toast.error(result.error);
                 return;
@@ -70,6 +99,15 @@ export default function ReportsPage() {
         }
     };
 
+    // Auto load on mount
+    useEffect(() => {
+        fetchReport();
+    }, [filterDate, reportType]);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
     const exportToExcel = () => {
         if (!reportData) {
             toast.error('Tidak ada data untuk diekspor');
@@ -78,575 +116,754 @@ export default function ReportsPage() {
 
         const wb = XLSX.utils.book_new();
 
-        // Sheet 1 - Ahli Gizi
-        if (reportData.ahliGizi.length > 0) {
-            const rows: any[] = [['Nama Menu', 'Nama Bahan', 'Qty Dibutuhkan', 'Satuan']];
-            reportData.ahliGizi.forEach((menu: any) => {
-                menu.ingredients.forEach((ing: any, idx: number) => {
-                    rows.push([
-                        idx === 0 ? menu.menuName : '',
-                        ing.name,
-                        ing.qtyNeeded,
-                        ing.unit
-                    ]);
-                });
+        // Sheet: Inventory
+        if (reportData.inventory) {
+            const categories = ['MASAK', 'KERING', 'OPERASIONAL'];
+            categories.forEach(cat => {
+                const filtered = reportData.inventory.filter((i: any) => i.category === cat);
+                if (filtered.length > 0) {
+                    const rows = [['Nama Bahan', 'Kategori', 'Stok Saat Ini', 'Minimal Stok', 'Satuan', 'Status']];
+                    filtered.forEach((i: any) => {
+                        const formatted = formatRecipeQty(i.currentStock, i.unit);
+                        const formattedMin = formatRecipeQty(i.minimumStock, i.unit);
+                        rows.push([i.name, i.category, formatted.stringValue, formattedMin.stringValue, formatted.unit, i.status === 'low' ? 'STOK RENDAH' : 'OK']);
+                    });
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), `Gudang - ${cat}`);
+                }
             });
-            const ws1 = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws1, 'Ahli Gizi');
         }
 
-        // Sheet 2 - Keuangan
-        if (reportData.keuangan.length > 0) {
-            const rows: any[] = [['Nama Bahan', 'Qty', 'Satuan', 'Catatan/Memo', 'Foto']];
-            reportData.keuangan.forEach((p: any) => {
-                p.items.forEach((item: any) => {
-                    rows.push([
-                        item.name,
-                        item.qty,
-                        item.unit,
-                        item.memo || '-',
-                        item.photoUrl ? { t: 's', v: 'Lihat Foto', l: { Target: item.photoUrl } } : '-'
-                    ]);
+        // Sheet: Purchases
+        if (reportData.purchases) {
+            const categories = ['MASAK', 'KERING', 'OPERASIONAL'];
+            categories.forEach(cat => {
+                const pRows: any[] = [['ID Transaksi', 'Tanggal', 'Bahan', 'Qty', 'Satuan', 'Status Purchasing', 'Foto (URL)', 'Catatan']];
+                let hasData = false;
+                reportData.purchases.forEach((p: any) => {
+                    const catItems = p.items.filter((item: any) => item.category === cat);
+                    if (catItems.length > 0) {
+                        catItems.forEach((item: any) => {
+                            const formatted = formatRecipeQty(item.qty, item.unit);
+                            pRows.push([p.id.substring(0, 8), format(new Date(p.date), 'dd/MM/yyyy'), item.name, formatted.stringValue, formatted.unit, p.status, item.photoUrl || '-', item.memo || '-']);
+                            hasData = true;
+                        });
+                        // Add empty row as separator between transactions
+                        pRows.push([]);
+                    }
                 });
+                if (hasData) {
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pRows), `Pembelian - ${cat}`);
+                }
             });
-            const ws2 = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws2, 'Keuangan');
         }
 
-        // Sheet 3 - Aslap
-        if (reportData.aslap.length > 0) {
-            const rows: any[] = [['Nama Bahan', 'Berat Kotor', 'Berat Bersih', 'Satuan', 'Foto']];
-            reportData.aslap.forEach((r: any) => {
-                r.items.forEach((item: any) => {
-                    rows.push([
-                        item.name,
-                        item.grossWeight,
-                        item.netWeight,
-                        item.unit,
-                        item.photoUrl ? { t: 's', v: 'Lihat Foto', l: { Target: item.photoUrl } } : '-'
-                    ]);
-                });
+        // Sheet: Menus
+        if (reportData.menus) {
+            const types = ['OMPRENG', 'KERING'];
+            types.forEach(type => {
+                const filtered = reportData.menus.filter((m: any) => m.type === type);
+                if (filtered.length > 0) {
+                    const rows = [['Tanggal', 'Menu', 'Bahan', 'Qty Dibutuhkan', 'Unit']];
+                    filtered.forEach((m: any) => {
+                        m.ingredients.forEach((i: any) => {
+                            const formatted = formatRecipeQty(i.qtyNeeded, i.unit);
+                            rows.push([format(new Date(m.date), 'dd/MM/yyyy'), m.name, i.name, formatted.stringValue, formatted.unit]);
+                        });
+                    });
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), `Menu - ${type === 'OMPRENG' ? 'MASAK' : 'KERING'}`);
+                }
             });
-            const ws3 = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws3, 'Aslap');
         }
 
-        // Sheet 4 - Chef
-        if (reportData.chef.length > 0) {
-            const rows: any[] = [['Menu', 'Porsi', 'Bahan', 'Qty Digunakan', 'Satuan', 'Foto']];
-            reportData.chef.forEach((prod: any) => {
-                prod.ingredients.forEach((ing: any, idx: number) => {
-                    rows.push([
-                        idx === 0 ? prod.menuName : '',
-                        idx === 0 ? prod.portions : '',
-                        ing.name,
-                        ing.qtyUsed,
-                        ing.unit,
-                        idx === 0 && prod.photoUrl ? { t: 's', v: 'Lihat Foto', l: { Target: prod.photoUrl } } : '-'
-                    ]);
-                });
+        // Sheet: Evaluations
+        if (reportData.evaluations) {
+            const types = ['OMPRENG', 'KERING'];
+            types.forEach(type => {
+                const filtered = reportData.evaluations.filter((e: any) => e.menuType === type);
+                if (filtered.length > 0) {
+                    const rows = [['Tanggal', 'Menu', 'Foto (URL)', 'Porsi', 'Ketepatan (%)', 'Pas', 'Bermasalah', 'Total Bahan', 'Status', 'Catatan']];
+                    filtered.forEach((e: any) => {
+                        rows.push([
+                            format(new Date(e.date), 'dd/MM/yyyy'),
+                            e.menuName,
+                            e.photoUrl || '-',
+                            e.portions,
+                            `${e.accuracy}%`,
+                            e.pas,
+                            e.bermasalah,
+                            e.totalIngredients,
+                            e.status,
+                            e.note || '-'
+                        ]);
+                    });
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), `Evaluasi - ${type === 'OMPRENG' ? 'MASAK' : 'KERING'}`);
+                }
             });
-            const ws4 = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(wb, ws4, 'Chef');
         }
 
-        const fileName = `Laporan_Harian_${selectedDate}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-        toast.success(`File Excel berhasil diunduh: ${fileName}`);
+        // Sheet: Frequent Menus
+        if (reportData.frequentMenus && reportData.frequentMenus.length > 0) {
+            const rows = [['Rank', 'Nama Menu', 'Frekuensi', 'Tipe']];
+            reportData.frequentMenus.forEach((m: any, idx: number) => {
+                rows.push([idx + 1, m.name, m.count, m.type]);
+            });
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Menu Terpopuler');
+        }
+
+        XLSX.writeFile(wb, `Laporan_${reportType}_${filterDate.startDate}_ke_${filterDate.endDate}.xlsx`);
     };
 
     const exportToPDF = async () => {
-        if (!reportData) {
-            toast.error('Tidak ada data untuk diekspor');
-            return;
-        }
-
+        if (!reportData) return;
         setExporting(true);
-        const toastId = toast.loading('Memproses PDF...');
+        const doc = new jsPDF();
 
-        try {
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('LAPORAN HARIAN DAPUR GEMPITA', 14, 15);
-            doc.setFontSize(12);
-            doc.text(format(new Date(selectedDate), 'dd MMMM yyyy'), 14, 22);
-            let yPos = 30;
-
-            // Pre-process images
-            const imageCache: Record<string, string> = {};
-            const urlsToFetch = new Set<string>();
-
-            // Collect URLs
-            reportData.pembeli.forEach((p: any) => p.items.forEach((i: any) => i.photoUrl && urlsToFetch.add(i.photoUrl)));
-            reportData.penerima.forEach((r: any) => r.items.forEach((i: any) => i.photoUrl && urlsToFetch.add(i.photoUrl)));
-            reportData.chef.forEach((c: any) => c.photoUrl && urlsToFetch.add(c.photoUrl));
-
-            // Fetch images
-            for (const url of Array.from(urlsToFetch)) {
-                try {
-                    const base64 = await urlToBase64(url);
-                    imageCache[url] = base64;
-                } catch (e) {
-                    console.error(`Failed to load image: ${url}`, e);
-                }
-            }
-
-
-            // Table 1 - Ahli Gizi
-            if (reportData.ahliGizi.length > 0) {
-                doc.setFontSize(14);
-                doc.text('1. Ahli Gizi - Menu & Bahan', 14, yPos);
-                yPos += 5;
-
-                const rows: any[] = [];
-                reportData.ahliGizi.forEach((menu: any) => {
-                    menu.ingredients.forEach((ing: any, idx: number) => {
-                        rows.push([
-                            idx === 0 ? menu.menuName : '',
-                            ing.name,
-                            `${ing.qtyNeeded} ${ing.unit}`
-                        ]);
-                    });
-                });
-
-                autoTable(doc, {
-                    startY: yPos,
-                    head: [['Menu', 'Bahan', 'Qty Dibutuhkan']],
-                    body: rows,
-                    theme: 'grid',
-                    headStyles: { fillColor: [52, 152, 219] },
-                });
-                yPos = (doc as any).lastAutoTable.finalY + 10;
-            }
-
-            // Table 2 - Keuangan
-            if (yPos > 250) { doc.addPage(); yPos = 20; }
-            if (reportData.keuangan.length > 0) {
-                doc.setFontSize(14);
-                doc.text('2. Keuangan - Pengadaan Bahan', 14, yPos);
-                yPos += 5;
-
-                const rows: any[] = [];
-                const photoCells: { row: number, col: number, url: string }[] = [];
-
-                reportData.keuangan.forEach((p: any) => {
-                    p.items.forEach((item: any) => {
-                        if (item.photoUrl && imageCache[item.photoUrl]) {
-                            photoCells.push({ row: rows.length, col: 3, url: item.photoUrl });
-                        }
-                        rows.push([
-                            item.name,
-                            `${item.qty} ${item.unit}`,
-                            item.memo || '-',
-                            '' // Placeholder for image
-                        ]);
-                    });
-                });
-
-                autoTable(doc, {
-                    startY: yPos,
-                    head: [['Bahan', 'Qty', 'Catatan', 'Foto']],
-                    body: rows,
-                    theme: 'striped',
-                    headStyles: { fillColor: [46, 204, 113] },
-                    columnStyles: {
-                        3: { minCellWidth: 20 }
-                    },
-                    bodyStyles: { minCellHeight: 20 },
-                    didDrawCell: (data) => {
-                        if (data.section === 'body' && data.column.index === 3) {
-                            const photo = photoCells.find(p => p.row === data.row.index && p.col === data.column.index);
-                            if (photo && imageCache[photo.url]) {
-                                const img = imageCache[photo.url];
-                                const dim = data.cell.height - 4; // padding
-                                doc.addImage(img, 'JPEG', data.cell.x + 2, data.cell.y + 2, dim, dim);
-                            }
-                        }
-                    }
-                });
-                yPos = (doc as any).lastAutoTable.finalY + 10;
-            }
-
-            // Table 3 - Aslap
-            if (yPos > 250) { doc.addPage(); yPos = 20; }
-            if (reportData.aslap.length > 0) {
-                doc.setFontSize(14);
-                doc.text('3. Aslap - Verifikasi Berat', 14, yPos);
-                yPos += 5;
-
-                const rows: any[] = [];
-                const photoCells: { row: number, col: number, url: string }[] = [];
-
-                reportData.aslap.forEach((r: any) => {
-                    r.items.forEach((item: any) => {
-                        if (item.photoUrl && imageCache[item.photoUrl]) {
-                            photoCells.push({ row: rows.length, col: 3, url: item.photoUrl });
-                        }
-                        rows.push([
-                            item.name,
-                            `${item.grossWeight} ${item.unit}`,
-                            `${item.netWeight} ${item.unit}`,
-                            ''
-                        ]);
-                    });
-                });
-
-                autoTable(doc, {
-                    startY: yPos,
-                    head: [['Bahan', 'Berat Kotor', 'Berat Bersih', 'Foto']],
-                    body: rows,
-                    theme: 'striped',
-                    headStyles: { fillColor: [155, 89, 182] },
-                    columnStyles: {
-                        3: { minCellWidth: 20 }
-                    },
-                    bodyStyles: { minCellHeight: 20 },
-                    didDrawCell: (data) => {
-                        if (data.section === 'body' && data.column.index === 3) {
-                            const photo = photoCells.find(p => p.row === data.row.index && p.col === data.column.index);
-                            if (photo && imageCache[photo.url]) {
-                                const img = imageCache[photo.url];
-                                const dim = data.cell.height - 4;
-                                doc.addImage(img, 'JPEG', data.cell.x + 2, data.cell.y + 2, dim, dim);
-                            }
-                        }
-                    }
-                });
-                yPos = (doc as any).lastAutoTable.finalY + 10;
-            }
-
-            // Table 4 - Chef
-            if (yPos > 250) { doc.addPage(); yPos = 20; }
-            if (reportData.chef.length > 0) {
-                doc.setFontSize(14);
-                doc.text('4. Chef - Produksi', 14, yPos);
-                yPos += 5;
-
-                const rows: any[] = [];
-                const photoCells: { row: number, col: number, url: string }[] = [];
-
-                reportData.chef.forEach((prod: any) => {
-                    prod.ingredients.forEach((ing: any, idx: number) => {
-                        if (idx === 0 && prod.photoUrl && imageCache[prod.photoUrl]) {
-                            photoCells.push({ row: rows.length, col: 4, url: prod.photoUrl });
-                        }
-                        rows.push([
-                            idx === 0 ? prod.menuName : '',
-                            idx === 0 ? prod.portions : '',
-                            ing.name,
-                            `${ing.qtyUsed} ${ing.unit}`,
-                            ''
-                        ]);
-                    });
-                });
-
-                autoTable(doc, {
-                    startY: yPos,
-                    head: [['Menu', 'Porsi', 'Bahan', 'Qty Digunakan', 'Foto']],
-                    body: rows,
-                    theme: 'striped',
-                    headStyles: { fillColor: [231, 76, 60] },
-                    columnStyles: {
-                        4: { minCellWidth: 20 }
-                    },
-                    bodyStyles: { minCellHeight: 20 },
-                    didDrawCell: (data) => {
-                        if (data.section === 'body' && data.column.index === 4) {
-                            const photo = photoCells.find(p => p.row === data.row.index && p.col === data.column.index);
-                            if (photo && imageCache[photo.url]) {
-                                const img = imageCache[photo.url];
-                                const dim = data.cell.height - 4;
-                                doc.addImage(img, 'JPEG', data.cell.x + 2, data.cell.y + 2, dim, dim);
-                            }
-                        }
-                    }
-                });
-            }
-
-            const fileName = `Laporan_Harian_${selectedDate}.pdf`;
-            doc.save(fileName);
-            toast.success(`File PDF berhasil diunduh: ${fileName}`, { id: toastId });
-        } catch (error) {
-            console.error('PDF Export Error:', error);
-            toast.error('Gagal mengekspor PDF', { id: toastId });
-        } finally {
-            setExporting(false);
+        doc.setFontSize(18);
+        // Logo & Header
+        if (logoBase64) {
+            doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
         }
+
+        doc.setFontSize(18);
+        doc.setTextColor(115, 2, 12); // #73020C Maroon
+        doc.text('LAPORAN OPERASIONAL DAPUR GEMPITA', logoBase64 ? 60 : 14, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Periode: ${filterDate.startDate} s/d ${filterDate.endDate}`, logoBase64 ? 60 : 14, 28);
+        doc.text(`Tipe: ${reportType.toUpperCase()}`, logoBase64 ? 60 : 14, 33);
+
+        let yPos = 45;
+
+        // Inventory Table
+        if (reportData.inventory) {
+            const categories = ['MASAK', 'KERING', 'OPERASIONAL'];
+            categories.forEach(cat => {
+                const filtered = reportData.inventory.filter((i: any) => i.category === cat);
+                if (filtered.length === 0) return;
+
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                doc.setFontSize(14);
+                doc.setTextColor(115, 2, 12);
+                doc.text(`Status Inventaris: ${cat}`, 14, yPos);
+
+                autoTable(doc, {
+                    startY: yPos + 5,
+                    head: [['Bahan', 'Stok', 'Min', 'Satuan']],
+                    body: filtered.map((i: any) => {
+                        const formatted = formatRecipeQty(i.currentStock, i.unit);
+                        const formattedMin = formatRecipeQty(i.minimumStock, i.unit);
+                        return [i.name, formatted.stringValue, formattedMin.stringValue, formatted.unit];
+                    }),
+                    theme: 'grid',
+                    headStyles: { fillColor: [115, 2, 12] } // Maroon
+                });
+                yPos = (doc as any).lastAutoTable.finalY + 15;
+            });
+        }
+
+        // Purchase Table
+        if (reportData.purchases) {
+            const categories = ['MASAK', 'KERING', 'OPERASIONAL'];
+            categories.forEach(cat => {
+                const transactions: any[] = [];
+                reportData.purchases.forEach((p: any) => {
+                    const catItems = p.items.filter((item: any) => item.category === cat);
+                    if (catItems.length > 0) {
+                        transactions.push({ p, items: catItems });
+                    }
+                });
+
+                if (transactions.length === 0) return;
+
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                doc.setFontSize(14);
+                doc.setTextColor(115, 2, 12);
+                doc.text(`Laporan Pembelian: ${cat}`, 14, yPos);
+                yPos += 5;
+
+                transactions.forEach((trans) => {
+                    const { p, items } = trans;
+                    if (yPos > 240) { doc.addPage(); yPos = 20; }
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(80, 80, 80);
+                    doc.text(`Transaksi: ${format(new Date(p.date), 'dd/MM/yyyy')} | Status: ${p.status.toUpperCase()}`, 14, yPos + 5);
+
+                    autoTable(doc, {
+                        startY: yPos + 7,
+                        head: [['Bahan', 'Qty', 'Unit', 'Foto', 'Catatan']],
+                        body: items.map((item: any) => {
+                            const formatted = formatRecipeQty(item.qty, item.unit);
+                            return [item.name, formatted.stringValue, formatted.unit, item.photoUrl ? '[ADA FOTO]' : '-', item.memo || '-'];
+                        }),
+                        theme: 'grid',
+                        headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0] },
+                        margin: { left: 20 }
+                    });
+                    yPos = (doc as any).lastAutoTable.finalY + 10;
+                });
+                yPos += 5;
+            });
+        }
+
+        // Menu Table
+        if (reportData.menus) {
+            const types = ['OMPRENG', 'KERING'];
+            types.forEach(type => {
+                const filtered = reportData.menus.filter((m: any) => m.type === type);
+                if (filtered.length === 0) return;
+
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                doc.setFontSize(14);
+                doc.setTextColor(115, 2, 12);
+                doc.text(`Laporan Menu: ${type === 'OMPRENG' ? 'MASAK' : 'KERING'}`, 14, yPos);
+
+                const mRows: any[] = [];
+                filtered.forEach((m: any) => {
+                    m.ingredients.forEach((i: any) => {
+                        const formatted = formatRecipeQty(i.qtyNeeded, i.unit);
+                        mRows.push([format(new Date(m.date), 'dd/MM/yy'), m.name, i.name, formatted.stringValue, formatted.unit]);
+                    });
+                });
+
+                autoTable(doc, {
+                    startY: yPos + 5,
+                    head: [['Tgl', 'Menu', 'Bahan', 'Qty', 'Unit']],
+                    body: mRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [115, 2, 12] } // Maroon
+                });
+                yPos = (doc as any).lastAutoTable.finalY + 15;
+            });
+        }
+
+        // Evaluation Table
+        if (reportData.evaluations) {
+            const types = ['OMPRENG', 'KERING'];
+            types.forEach(type => {
+                const filtered = reportData.evaluations.filter((e: any) => e.menuType === type);
+                if (filtered.length === 0) return;
+
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                doc.setFontSize(14);
+                doc.setTextColor(115, 2, 12);
+                doc.text(`Laporan Evaluasi Gizi: ${type === 'OMPRENG' ? 'MASAK' : 'KERING'}`, 14, yPos);
+
+                const eRows: any[] = filtered.map((e: any) => [
+                    format(new Date(e.date), 'dd/MM/yy'),
+                    e.menuName,
+                    e.photoUrl ? '[ADA FOTO]' : '-',
+                    e.portions,
+                    `${e.accuracy}%`,
+                    e.pas,
+                    e.bermasalah,
+                    e.status
+                ]);
+
+                autoTable(doc, {
+                    startY: yPos + 5,
+                    head: [['Tgl', 'Menu', 'Foto', 'Pax', 'Akurasi', 'Pas', 'Msalah', 'Status']],
+                    body: eRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [115, 2, 12] } // Maroon
+                });
+                yPos = (doc as any).lastAutoTable.finalY + 15;
+            });
+        }
+
+        // Section: Menu Terpopuler
+        if (reportData.frequentMenus && reportData.frequentMenus.length > 0) {
+            if (yPos > 240) { doc.addPage(); yPos = 20; }
+            doc.setFontSize(14);
+            doc.setTextColor(0);
+            doc.text('Analisis Menu Terpopuler (Sering Digunakan)', 14, yPos);
+
+            const fRows = reportData.frequentMenus.map((m: any, idx: number) => [
+                `#${idx + 1}`,
+                m.name,
+                `${m.count} Kali`,
+                m.type
+            ]);
+
+            autoTable(doc, {
+                startY: yPos + 5,
+                head: [['Rank', 'Nama Menu', 'Frekuensi', 'Tipe']],
+                body: fRows,
+                theme: 'striped',
+                headStyles: { fillColor: [217, 119, 6] } // Amber-600 ish
+            });
+            yPos = (doc as any).lastAutoTable.finalY + 15;
+        }
+
+        doc.save(`Laporan_${reportType}.pdf`);
+        setExporting(false);
     };
 
     return (
         <RouteGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'KEPALA_DAPUR']}>
             <DashboardLayout
-                title="Laporan Harian"
-                description="Laporan harian lengkap dari semua role: Ahli Gizi, Keuangan, Aslap, Chef."
+                title="Sistem Pelaporan"
+                description="Hasilkan laporan detail untuk inventaris, pembelian, dan produksi."
             >
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Laporan Tanggal Hari Ini</CardTitle>
-                        <CardDescription>
-                            {isReadOnly ? 'Laporan hanya bisa dilihat untuk hari ini' : 'Pilih tanggal untuk melihat laporan'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-end gap-4">
-                            <div className="flex-1 max-w-xs">
-                                <Label htmlFor="reportDate">Tanggal</Label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        id="reportDate"
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="pl-10"
-                                        disabled={isReadOnly}
-                                    />
+                <div className="grid gap-6 print:block w-full max-w-full overflow-x-hidden">
+                    {/* Filters - Hidden in print */}
+                    <div className="print:hidden">
+                        <Card className="border-primary/20 shadow-sm overflow-hidden border-t-4 border-t-primary">
+                            <CardContent className="p-4 sm:p-6 space-y-6">
+                                <DateFilter
+                                    minimal
+                                    onFilter={(startDate, endDate) => setFilterDate({ startDate, endDate })}
+                                    isLoading={loading}
+                                />
+
+                                <div className="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4 pt-4 border-t border-slate-100">
+                                    <div className="space-y-1 w-full lg:w-auto">
+                                        <Label className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-2">
+                                            <ClipboardList className="h-3 w-3 text-primary" /> Tipe Laporan
+                                        </Label>
+                                        <Select value={reportType} onValueChange={(v: any) => setReportType(v)}>
+                                            <SelectTrigger className="w-full lg:w-[280px] border-primary/20 bg-white h-10 rounded-lg">
+                                                <SelectValue placeholder="Pilih Tipe Laporan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="combined">Semua Laporan (Terpadu)</SelectItem>
+                                                <SelectItem value="inventory">Laporan Stok Gudang</SelectItem>
+                                                <SelectItem value="purchase">Laporan Pembelian Barang</SelectItem>
+                                                <SelectItem value="menu">Laporan Kebutuhan Menu</SelectItem>
+                                                <SelectItem value="evaluation">Laporan Evaluasi Gizi</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
+                                        <Button variant="outline" className="flex gap-2 justify-center h-10 shadow-sm hover:bg-slate-50 transition-colors w-full sm:w-auto rounded-lg" onClick={handlePrint}>
+                                            <Printer className="h-4 w-4" /> Cetak
+                                        </Button>
+                                        <Button variant="outline" className="flex gap-2 justify-center text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-10 shadow-sm transition-colors w-full sm:w-auto rounded-lg" onClick={exportToExcel}>
+                                            <FileSpreadsheet className="h-4 w-4" /> Excel
+                                        </Button>
+                                        <Button variant="outline" className="flex gap-2 justify-center text-rose-600 border-rose-200 hover:bg-rose-50 h-10 shadow-sm transition-colors w-full sm:w-auto rounded-lg" onClick={exportToPDF} disabled={exporting}>
+                                            <FileDown className="h-4 w-4" /> {exporting ? 'Proses...' : 'PDF'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Summary Cards - Grid */}
+                    {reportData?.summary && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 print:hidden">
+                            <Card className="bg-white border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all">
+                                <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                    <ShoppingCart className="h-5 w-5 text-primary mb-1" />
+                                    <div className="text-2xl font-bold">{reportData.summary.totalPurchases}</div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Pesanan</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-white border-l-4 border-l-accent shadow-sm hover:shadow-md transition-all">
+                                <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                    <Warehouse className="h-5 w-5 text-accent-foreground mb-1" />
+                                    <div className="text-2xl font-bold text-accent-foreground">{reportData.summary.lowStockCount}</div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Stok Rendah</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-white border-l-4 border-l-success shadow-sm hover:shadow-md transition-all">
+                                <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                    <Utensils className="h-5 w-5 text-success mb-1" />
+                                    <div className="text-2xl font-bold">{reportData.summary.totalProductions}</div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Produksi</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-white border-l-4 border-l-primary/60 shadow-sm hover:shadow-md transition-all">
+                                <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                    <BarChart3 className="h-5 w-5 text-primary mb-1" />
+                                    <div className="text-2xl font-bold">{reportData.summary.totalPortions}</div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Porsi</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-white border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
+                                <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+                                    <ClipboardList className="h-5 w-5 text-purple-500 mb-1" />
+                                    <div className="text-2xl font-bold">{reportData.summary.totalMenus}</div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Menu</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    {/* Report Content */}
+                    {reportData ? (
+                        <div className="space-y-8 bg-white print:p-0 print:m-0 w-full max-w-full overflow-hidden">
+                            {/* Header for print only */}
+                            <div className="hidden print:flex items-center justify-between mb-8 border-b-2 border-primary pb-6">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-primary mb-1">LAPORAN OPERASIONAL</h1>
+                                    <h2 className="text-xl font-medium text-slate-600">Dapur Gempita - Layanan Makanan</h2>
+                                    <div className="mt-4 flex gap-6 text-sm text-slate-500">
+                                        <p><span className="font-semibold text-slate-700">Periode:</span> {filterDate.startDate} s/d {filterDate.endDate}</p>
+                                        <p><span className="font-semibold text-slate-700">Dicetak:</span> {format(new Date(), 'dd MMM yyyy, HH:mm')}</p>
+                                    </div>
+                                </div>
+                                <img src="/Logo.png" alt="Gempita Logo" className="h-16 w-auto" />
+                            </div>
+
+                            {/* 1. Inventory Report Section */}
+                            {(reportType === 'inventory' || reportType === 'combined') && reportData.inventory && (
+                                <section className="break-inside-avoid">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                            <Warehouse className="h-5 w-5 text-amber-600 print:hidden" />
+                                            Laporan Inventaris (Gudang)
+                                        </h3>
+                                    </div>
+                                    {['MASAK', 'KERING', 'OPERASIONAL'].map(cat => {
+                                        const filtered = reportData.inventory.filter((i: any) => i.category === cat);
+                                        if (filtered.length === 0) return null;
+                                        return (
+                                            <div key={cat} className="mb-8 last:mb-0">
+                                                <h4 className="text-sm font-bold text-slate-500 mb-2 px-1 uppercase tracking-wider">
+                                                    {cat === 'MASAK' ? 'Bahan Menu Masak' : cat === 'KERING' ? 'Bahan Menu Kering' : 'Barang Operasional'}
+                                                </h4>
+                                                <div className="rounded-xl border shadow-sm overflow-x-auto bg-white w-full">
+                                                    <Table className="min-w-[700px]">
+                                                        <TableHeader className="bg-slate-50">
+                                                            <TableRow>
+                                                                <TableHead className="w-[300px]">Nama Bahan</TableHead>
+                                                                <TableHead className="text-right">Stok</TableHead>
+                                                                <TableHead className="text-right">Min</TableHead>
+                                                                <TableHead>Satuan</TableHead>
+                                                                <TableHead className="text-center print:hidden">Status</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {filtered.map((i: any) => (
+                                                                <TableRow key={i.id} className={i.status === 'low' ? 'bg-destructive/10' : ''}>
+                                                                    <TableCell className="font-medium">{i.name}</TableCell>
+                                                                    <TableCell className={cn("text-right font-bold", i.status === 'low' ? 'text-destructive' : 'text-slate-900')}>
+                                                                        {formatRecipeQty(i.currentStock, i.unit).stringValue}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right text-muted-foreground">
+                                                                        {formatRecipeQty(i.minimumStock, i.unit).stringValue}
+                                                                    </TableCell>
+                                                                    <TableCell>{formatRecipeQty(i.currentStock, i.unit).unit}</TableCell>
+                                                                    <TableCell className="text-center print:hidden">
+                                                                        {i.status === 'low' ? (
+                                                                            <Badge className="bg-destructive hover:bg-destructive/90">RENDAH</Badge>
+                                                                        ) : (
+                                                                            <Badge className="bg-success hover:bg-success/90">OK</Badge>
+                                                                        )}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </section>
+                            )}
+
+                            {/* 2. Purchase Report Section */}
+                            {(reportType === 'purchase' || reportType === 'combined') && reportData.purchases && (
+                                <section className="break-inside-avoid">
+                                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <ShoppingCart className="h-5 w-5 text-blue-600 print:hidden" />
+                                        Laporan Pembelian
+                                    </h3>
+                                    {['MASAK', 'KERING', 'OPERASIONAL'].map(cat => {
+                                        const transactions: any[] = [];
+                                        reportData.purchases.forEach((p: any) => {
+                                            const catItems = p.items.filter((item: any) => item.category === cat);
+                                            if (catItems.length > 0) {
+                                                transactions.push({ ...p, catItems });
+                                            }
+                                        });
+
+                                        if (transactions.length === 0) return null;
+
+                                        return (
+                                            <div key={cat} className="mb-8 last:mb-0">
+                                                <h4 className="text-sm font-bold text-slate-500 mb-2 px-1 uppercase tracking-wider">
+                                                    {cat === 'MASAK' ? 'Pembelian Bahan Masak' : cat === 'KERING' ? 'Pembelian Bahan Kering' : 'Pembelian Barang Operasional'}
+                                                </h4>
+
+                                                <div className="space-y-4">
+                                                    {transactions.map((trans) => (
+                                                        <div key={trans.id} className="rounded-xl border shadow-sm overflow-x-auto bg-white w-full">
+                                                            <div className="bg-slate-50 px-4 py-2 border-b flex justify-between items-center">
+                                                                <div className="flex items-center gap-4">
+                                                                    <span className="font-bold text-slate-700">{format(new Date(trans.date), 'dd MMMM yyyy')}</span>
+                                                                    <span className="text-xs text-slate-400 font-mono">ID: {trans.id.substring(0, 8)}</span>
+                                                                </div>
+                                                                <StatusBadge status={trans.status} />
+                                                            </div>
+                                                            <Table className="min-w-[700px]">
+                                                                <TableHeader>
+                                                                    <TableRow className="hover:bg-transparent border-none">
+                                                                        <TableHead className="py-2">Bahan</TableHead>
+                                                                        <TableHead className="text-right py-2">Qty</TableHead>
+                                                                        <TableHead className="py-2">Unit</TableHead>
+                                                                        <TableHead className="py-2">Foto</TableHead>
+                                                                        <TableHead className="print:hidden py-2">Catatan</TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {trans.catItems.map((item: any, idx: number) => (
+                                                                        <TableRow key={`${trans.id}-${idx}`}>
+                                                                            <TableCell className="font-medium">{item.name}</TableCell>
+                                                                            <TableCell className="text-right font-semibold">
+                                                                                {formatRecipeQty(item.qty, item.unit).stringValue}
+                                                                            </TableCell>
+                                                                            <TableCell>{formatRecipeQty(item.qty, item.unit).unit}</TableCell>
+                                                                            <TableCell>
+                                                                                {item.photoUrl ? (
+                                                                                    <div
+                                                                                        className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 transition-all print:h-16 print:w-16"
+                                                                                        onClick={() => setLightboxImage(item.photoUrl)}
+                                                                                    >
+                                                                                        <img src={item.photoUrl} alt="Foto Bahan" className="h-full w-full object-cover" />
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="h-10 w-10 flex items-center justify-center bg-slate-50 rounded-md border border-slate-100 print:hidden">
+                                                                                        <ImageIcon className="h-4 w-4 text-slate-300" />
+                                                                                    </div>
+                                                                                )}
+                                                                            </TableCell>
+                                                                            <TableCell className="max-w-[150px] truncate text-xs text-muted-foreground print:hidden">
+                                                                                {item.memo || '-'}
+                                                                            </TableCell>
+                                                                        </TableRow>
+                                                                    ))}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </section>
+                            )}
+
+                            {/* 3. Menu Report Section */}
+                            {(reportType === 'menu' || reportType === 'combined') && reportData.menus && (
+                                <section className="break-inside-avoid">
+                                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <Utensils className="h-5 w-5 text-purple-600 print:hidden" />
+                                        Daftar Menu & Kebutuhan Bahan
+                                    </h3>
+                                    <div className="rounded-xl border shadow-sm overflow-x-auto bg-white w-full">
+                                        {['OMPRENG', 'KERING'].map(type => {
+                                            const filtered = reportData.menus.filter((m: any) => m.type === type);
+                                            if (filtered.length === 0) return null;
+                                            return (
+                                                <div key={type} className="mb-8 last:mb-0">
+                                                    <h4 className="text-sm font-bold text-slate-500 mb-2 px-1 uppercase tracking-wider">
+                                                        {type === 'OMPRENG' ? 'Menu Masak' : 'Menu Kering'}
+                                                    </h4>
+                                                    <div className="rounded-xl border shadow-sm overflow-x-auto bg-white w-full">
+                                                        <Table className="min-w-[700px]">
+                                                            <TableHeader className="bg-slate-50">
+                                                                <TableRow>
+                                                                    <TableHead>Tanggal</TableHead>
+                                                                    <TableHead>Menu</TableHead>
+                                                                    <TableHead>Bahan</TableHead>
+                                                                    <TableHead className="text-right">Qty Butuh</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {filtered.map((m: any) => m.ingredients.map((ing: any, idx: number) => (
+                                                                    <TableRow key={`${m.id}-${idx}`}>
+                                                                        <TableCell className="whitespace-nowrap">{idx === 0 ? format(new Date(m.date), 'dd/MM/yyyy') : ''}</TableCell>
+                                                                        <TableCell className="font-medium">{idx === 0 ? m.name : ''}</TableCell>
+                                                                        <TableCell>{ing.name}</TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            {formatRecipeQty(ing.qtyNeeded, ing.unit).stringValue} {formatRecipeQty(ing.qtyNeeded, ing.unit).unit}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* 3. Evaluation Report Section */}
+                            {(reportType === 'evaluation' || reportType === 'combined') && reportData.evaluations && (
+                                <section className="break-inside-avoid">
+                                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <CheckCircle2 className="h-5 w-5 text-green-600 print:hidden" />
+                                        Laporan Evaluasi Gizi
+                                    </h3>
+                                    <div className="space-y-6">
+                                        {['OMPRENG', 'KERING'].map(type => {
+                                            const filtered = reportData.evaluations.filter((e: any) => e.menuType === type);
+                                            if (filtered.length === 0) return null;
+                                            return (
+                                                <div key={type}>
+                                                    <h4 className="text-sm font-bold text-slate-500 mb-2 px-1 uppercase tracking-wider">
+                                                        {type === 'OMPRENG' ? 'Evaluasi Menu Masak' : 'Evaluasi Menu Kering'}
+                                                    </h4>
+                                                    <div className="rounded-xl border shadow-sm overflow-x-auto bg-white w-full">
+                                                        <Table className="min-w-[800px]">
+                                                            <TableHeader className="bg-slate-50">
+                                                                <TableRow>
+                                                                    <TableHead>Tanggal</TableHead>
+                                                                    <TableHead>Menu</TableHead>
+                                                                    <TableHead>Foto</TableHead>
+                                                                    <TableHead className="text-right">Porsi</TableHead>
+                                                                    <TableHead className="text-center">Ketepatan</TableHead>
+                                                                    <TableHead className="text-center text-green-600">Pas</TableHead>
+                                                                    <TableHead className="text-center text-orange-600">Bermasalah</TableHead>
+                                                                    <TableHead>Status</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {filtered.map((e: any) => (
+                                                                    <TableRow key={e.id}>
+                                                                        <TableCell className="whitespace-nowrap">{format(new Date(e.date), 'dd/MM/yyyy')}</TableCell>
+                                                                        <TableCell className="font-medium">{e.menuName}</TableCell>
+                                                                        <TableCell>
+                                                                            {e.photoUrl ? (
+                                                                                <div
+                                                                                    className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 transition-all print:h-16 print:w-16"
+                                                                                    onClick={() => setLightboxImage(e.photoUrl)}
+                                                                                >
+                                                                                    <img src={e.photoUrl} alt="Foto Masakan" className="h-full w-full object-cover" />
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="h-10 w-10 flex items-center justify-center bg-slate-50 rounded-md border border-slate-100 print:hidden">
+                                                                                    <ImageIcon className="h-4 w-4 text-slate-300" />
+                                                                                </div>
+                                                                            )}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right font-semibold">{e.portions}</TableCell>
+                                                                        <TableCell className="text-center">
+                                                                            <div className="flex flex-col items-center gap-1">
+                                                                                <span className="font-bold text-primary">{e.accuracy}%</span>
+                                                                                <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                                    <div className="h-full bg-primary" style={{ width: `${e.accuracy}%` }} />
+                                                                                </div>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-center font-bold text-green-600">{e.pas}</TableCell>
+                                                                        <TableCell className="text-center font-bold text-orange-600">{e.bermasalah}</TableCell>
+                                                                        <TableCell>
+                                                                            <Badge variant={e.status === 'TEREVALUASI' ? 'default' : 'outline'} className={cn(
+                                                                                e.status === 'TEREVALUASI' ? 'bg-success text-white border-none' : 'text-primary border-primary/20'
+                                                                            )}>
+                                                                                {e.status}
+                                                                            </Badge>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* 4. Frequent Menus Analysis Section */}
+                            {(reportType === 'evaluation' || reportType === 'combined') && reportData.frequentMenus && reportData.frequentMenus.length > 0 && (
+                                <section className="break-inside-avoid mt-8">
+                                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <BarChart3 className="h-5 w-5 text-amber-600 print:hidden" />
+                                        Analisis Menu Terpopuler (Sering Digunakan)
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {['OMPRENG', 'KERING'].map(type => {
+                                            const filtered = reportData.frequentMenus.filter((m: any) => m.type === type);
+                                            if (filtered.length === 0) return null;
+                                            return (
+                                                <div key={type} className="rounded-xl border shadow-sm overflow-hidden bg-white">
+                                                    <div className="bg-slate-50 px-4 py-2 border-b">
+                                                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                            {type === 'OMPRENG' ? 'Top Menu Masak' : 'Top Menu Kering'}
+                                                        </h4>
+                                                    </div>
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead className="w-12">Rank</TableHead>
+                                                                <TableHead>Nama Menu</TableHead>
+                                                                <TableHead className="text-right">Frekuensi</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {filtered.map((m: any, idx: number) => (
+                                                                <TableRow key={m.name}>
+                                                                    <TableCell className="font-bold text-slate-400">#{idx + 1}</TableCell>
+                                                                    <TableCell className="font-medium text-sm">{m.name}</TableCell>
+                                                                    <TableCell className="text-right">
+                                                                        <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/20">
+                                                                            {m.count} Kali
+                                                                        </Badge>
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Action Buttons - Hidden in print */}
+                            <div className="print:hidden md:sticky bottom-6 py-3 px-4 md:py-4 md:px-6 border bg-white/95 md:bg-white/80 backdrop-blur-md rounded-xl md:rounded-2xl shadow-lg md:shadow-xl flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4 z-10 border-primary/10 mt-8 md:mt-0 w-full overflow-hidden">
+                                <div className="text-xs md:text-sm font-medium text-slate-600 text-center md:text-left">
+                                    Siap diekspor: <span className="text-primary font-bold uppercase">{reportType}</span>
+                                </div>
+                                <div className="grid grid-cols-3 md:flex md:flex-row items-center gap-2 md:gap-3 w-full md:w-auto">
+                                    <Button onClick={handlePrint} variant="outline" size="sm" className="border-primary/20 h-9 px-2">
+                                        <Printer className="mr-1 md:mr-2 h-4 w-4" />
+                                        <span className="hidden sm:inline md:hidden">Cetak</span>
+                                        <span className="hidden md:inline">Cetak Laporan</span>
+                                        <span className="sm:hidden">Print</span>
+                                    </Button>
+                                    <Button onClick={exportToExcel} variant="outline" size="sm" className="border-primary/20 h-9 px-2">
+                                        <FileSpreadsheet className="mr-1 md:mr-2 h-4 w-4 text-emerald-600" />
+                                        <span className="hidden sm:inline md:hidden">Excel</span>
+                                        <span className="hidden md:inline">Export Excel</span>
+                                        <span className="sm:hidden">XLS</span>
+                                    </Button>
+                                    <Button onClick={exportToPDF} size="sm" className="bg-primary hover:bg-primary/90 h-9 px-2" disabled={exporting}>
+                                        <FileDown className="mr-1 md:mr-2 h-4 w-4 text-white" />
+                                        <span className="hidden sm:inline md:hidden">{exporting ? 'Proses' : 'PDF'}</span>
+                                        <span className="hidden md:inline">{exporting ? 'Memproses...' : 'Download PDF'}</span>
+                                        <span className="sm:hidden">{exporting ? '...' : 'PDF'}</span>
+                                    </Button>
                                 </div>
                             </div>
-                            <Button onClick={fetchReport} disabled={loading}>
-                                {loading ? 'Memuat...' : 'Tampilkan Laporan'}
-                            </Button>
                         </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 bg-slate-50 border rounded-2xl border-dashed">
+                            <BarChart3 className="h-12 w-12 text-slate-300 mb-4" />
+                            <h3 className="text-lg font-medium text-slate-400">Pilih rentang tanggal dan tipe laporan</h3>
+                        </div>
+                    )}
+                </div>
 
-                        {reportData && (
-                            <>
-                                <div className="pt-4 border-t">
-                                    <Card className="bg-blue-50">
-                                        <CardContent className="pt-4">
-                                            <div className="text-3xl font-bold text-blue-600">
-                                                {reportData.summary.totalPortions}
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">Total Porsi Diproduksi</p>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Table 1: Ahli Gizi */}
-                                <div className="pt-4 border-t">
-                                    <h3 className="text-lg font-semibold mb-3">1. Ahli Gizi - Menu & Bahan</h3>
-                                    <div className="border rounded-md overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Nama Menu</TableHead>
-                                                    <TableHead>Nama Bahan</TableHead>
-                                                    <TableHead className="text-right">Qty Dibutuhkan</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {reportData.ahliGizi.length === 0 ? (
-                                                    <TableRow>
-                                                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                                                            Tidak ada data menu
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (
-                                                    reportData.ahliGizi.map((menu: any, menuIdx: number) =>
-                                                        menu.ingredients.map((ing: any, ingIdx: number) => (
-                                                            <TableRow key={`menu-${menuIdx}-ing-${ingIdx}`}>
-                                                                <TableCell className="font-medium">
-                                                                    {ingIdx === 0 ? menu.menuName : ''}
-                                                                </TableCell>
-                                                                <TableCell>{ing.name}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    {ing.qtyNeeded} {ing.unit}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </div>
-
-                                {/* Table 2: Keuangan */}
-                                <div className="pt-4 border-t">
-                                    <h3 className="text-lg font-semibold mb-3">2. Keuangan - Pengadaan Bahan</h3>
-                                    <div className="border rounded-md overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Nama Bahan</TableHead>
-                                                    <TableHead className="text-right">Qty</TableHead>
-                                                    <TableHead>Catatan/Memo</TableHead>
-                                                    <TableHead className="text-center">Foto</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {reportData.keuangan.length === 0 ? (
-                                                    <TableRow>
-                                                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                            Tidak ada data pengadaan
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (
-                                                    reportData.keuangan.map((p: any, pIdx: number) =>
-                                                        p.items.map((item: any, iIdx: number) => (
-                                                            <TableRow key={`purchase-${pIdx}-item-${iIdx}`}>
-                                                                <TableCell className="font-medium">{item.name}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    {item.qty} {item.unit}
-                                                                </TableCell>
-                                                                <TableCell className="text-sm text-muted-foreground">
-                                                                    {item.memo || '-'}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {item.photoUrl ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            onClick={() => setLightboxImage(item.photoUrl)}
-                                                                        >
-                                                                            <ImageIcon className="h-4 w-4" />
-                                                                        </Button>
-                                                                    ) : '-'}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </div>
-
-                                {/* Table 3: Aslap */}
-                                <div className="pt-4 border-t">
-                                    <h3 className="text-lg font-semibold mb-3">3. Aslap - Verifikasi Berat</h3>
-                                    <div className="border rounded-md overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Nama Bahan</TableHead>
-                                                    <TableHead className="text-right">Berat Kotor</TableHead>
-                                                    <TableHead className="text-right">Berat Bersih</TableHead>
-                                                    <TableHead className="text-center">Foto</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {reportData.aslap.length === 0 ? (
-                                                    <TableRow>
-                                                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                            Tidak ada data penerimaan
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (
-                                                    reportData.aslap.map((r: any, rIdx: number) =>
-                                                        r.items.map((item: any, iIdx: number) => (
-                                                            <TableRow key={`receipt-${rIdx}-item-${iIdx}`}>
-                                                                <TableCell className="font-medium">{item.name}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    {item.grossWeight} {item.unit}
-                                                                </TableCell>
-                                                                <TableCell className="text-right">
-                                                                    {item.netWeight} {item.unit}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {item.photoUrl ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            onClick={() => setLightboxImage(item.photoUrl)}
-                                                                        >
-                                                                            <ImageIcon className="h-4 w-4" />
-                                                                        </Button>
-                                                                    ) : '-'}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </div>
-
-                                {/* Table 4: Chef */}
-                                <div className="pt-4 border-t">
-                                    <h3 className="text-lg font-semibold mb-3">4. Chef - Produksi</h3>
-                                    <div className="border rounded-md overflow-x-auto">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Menu</TableHead>
-                                                    <TableHead className="text-right">Porsi</TableHead>
-                                                    <TableHead>Bahan</TableHead>
-                                                    <TableHead className="text-right">Qty Digunakan</TableHead>
-                                                    <TableHead className="text-center">Foto</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {reportData.chef.length === 0 ? (
-                                                    <TableRow>
-                                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                            Tidak ada data produksi
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ) : (
-                                                    reportData.chef.map((prod: any, pIdx: number) =>
-                                                        prod.ingredients.map((ing: any, iIdx: number) => (
-                                                            <TableRow key={`prod-${pIdx}-ing-${iIdx}`}>
-                                                                <TableCell className="font-medium">
-                                                                    {iIdx === 0 ? prod.menuName : ''}
-                                                                </TableCell>
-                                                                <TableCell className="text-right">
-                                                                    {iIdx === 0 ? prod.portions : ''}
-                                                                </TableCell>
-                                                                <TableCell>{ing.name}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    {ing.qtyUsed} {ing.unit}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {iIdx === 0 && prod.photoUrl ? (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            onClick={() => setLightboxImage(prod.photoUrl)}
-                                                                        >
-                                                                            <ImageIcon className="h-4 w-4" />
-                                                                        </Button>
-                                                                    ) : '-'}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    )
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </div>
-
-                                {/* Export Buttons */}
-                                <div className="pt-4 border-t flex gap-3">
-                                    <Button onClick={exportToExcel} variant="outline" disabled={exporting}>
-                                        <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                        Export Excel
-                                    </Button>
-                                    <Button onClick={exportToPDF} variant="outline" disabled={exporting}>
-                                        <FileDown className="mr-2 h-4 w-4" />
-                                        {exporting ? 'Memproses PDF...' : 'Export PDF'}
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Photo Lightbox */}
+                {/* Single Image Lightbox */}
                 {lightboxImage && (
                     <Dialog open={!!lightboxImage} onOpenChange={() => setLightboxImage(null)}>
-                        <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0">
-                            <DialogHeader className="p-4 pb-2">
-                                <DialogTitle>Foto Bukti</DialogTitle>
+                        <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden border-none bg-transparent shadow-none">
+                            <DialogHeader className="sr-only">
+                                <DialogTitle>Pratinjau Foto</DialogTitle>
+                                <DialogDescription>Tampilan detail foto bukti laporan</DialogDescription>
                             </DialogHeader>
-                            <div className="flex items-center justify-center p-4 pt-0">
-                                <img
-                                    src={lightboxImage}
-                                    alt="Foto bukti"
-                                    className="max-w-full max-h-[80vh] object-contain rounded"
-                                />
-                            </div>
+                            <img src={lightboxImage} alt="Bukti" className="w-full h-auto object-contain rounded-lg" />
                         </DialogContent>
                     </Dialog>
                 )}

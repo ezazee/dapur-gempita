@@ -5,6 +5,10 @@ interface ProductionAttributes {
     id: string;
     menuId: string;
     productionDate: Date;
+    countKecil: number;
+    countBesar: number;
+    countBumil: number;
+    countBalita: number;
     totalPortions: number;
     note?: string;
     photoUrl?: string;
@@ -19,6 +23,10 @@ class Production extends Model<ProductionAttributes, ProductionCreationAttribute
     declare public id: string;
     declare public menuId: string;
     declare public productionDate: Date;
+    declare public countKecil: number;
+    declare public countBesar: number;
+    declare public countBumil: number;
+    declare public countBalita: number;
     declare public totalPortions: number;
     declare public note: string;
     declare public photoUrl?: string;
@@ -43,6 +51,30 @@ Production.init(
             type: DataTypes.DATE,
             allowNull: false,
             field: 'production_date'
+        },
+        countKecil: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+            field: 'count_kecil'
+        },
+        countBesar: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+            field: 'count_besar'
+        },
+        countBumil: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+            field: 'count_bumil'
+        },
+        countBalita: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0,
+            field: 'count_balita'
         },
         totalPortions: {
             type: DataTypes.INTEGER,

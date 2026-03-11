@@ -6,7 +6,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   AHLI_GIZI: 'Ahli Gizi',
   KEUANGAN: 'Keuangan',
   ASLAP: 'Aslap (Asisten Lapangan)',
-  CHEF: 'Chef',
+  CHEF: 'Juru Masak',
   KEPALA_DAPUR: 'Kepala Dapur',
 };
 
@@ -25,6 +25,11 @@ export const UNITS = [
   'gram',
   'liter',
   'ml',
+  'sdm',
+  'sdt',
+  'siung',
+  'ruas',
+  'biji',
   'butir',
   'buah',
   'ikat',
@@ -34,7 +39,12 @@ export const UNITS = [
   'ekor',
   'kaleng',
   'botol',
+  'pack',
+  'sisir',
+  'karung',
+  'kotak',
   'kardus',
+  'dus',
 ];
 
 export const PURCHASE_STATUS_LABELS: Record<string, string> = {

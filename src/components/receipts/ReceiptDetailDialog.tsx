@@ -21,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { X } from 'lucide-react';
+import { cn, formatRecipeQty, formatMemo } from '@/lib/utils';
 
 interface ReceiptDetailDialogProps {
     open: boolean;
@@ -49,7 +50,15 @@ export function ReceiptDetailDialog({ open, onOpenChange, receipt }: ReceiptDeta
                         <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                             <div>
                                 <p className="text-sm text-muted-foreground">Tanggal Penerimaan</p>
-                                <p className="font-medium">{format(new Date(receipt.date), 'dd MMMM yyyy, HH:mm')}</p>
+                                <p className="font-medium">
+                                    {(() => {
+                                        try {
+                                            return format(new Date(receipt.date || receipt.receivedAt), 'dd MMMM yyyy, HH:mm');
+                                        } catch (e) {
+                                            return 'Tanggal tidak valid';
+                                        }
+                                    })()}
+                                </p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Diterima Oleh</p>
@@ -64,7 +73,7 @@ export function ReceiptDetailDialog({ open, onOpenChange, receipt }: ReceiptDeta
                             {receipt.note && (
                                 <div className="col-span-2">
                                     <p className="text-sm text-muted-foreground">Catatan</p>
-                                    <p className="font-medium">{receipt.note}</p>
+                                    <p className="font-medium">{formatMemo(receipt.note)}</p>
                                 </div>
                             )}
                         </div>
@@ -85,10 +94,10 @@ export function ReceiptDetailDialog({ open, onOpenChange, receipt }: ReceiptDeta
                                         <TableRow key={item.id}>
                                             <TableCell className="font-medium">{item.ingredientName}</TableCell>
                                             <TableCell className="text-center">
-                                                {item.grossWeight} {item.unit || 'kg'}
+                                                {formatRecipeQty(item.grossWeight, item.unit).stringValue} {formatRecipeQty(item.grossWeight, item.unit).unit}
                                             </TableCell>
-                                            <TableCell className="text-center font-semibold text-green-600">
-                                                {item.netWeight} {item.unit || 'kg'}
+                                            <TableCell className={cn("text-center font-semibold", item.netWeight <= 0 ? "text-destructive" : "text-green-600")}>
+                                                {formatRecipeQty(item.netWeight, item.unit).stringValue} {formatRecipeQty(item.netWeight, item.unit).unit}
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 {item.photoUrl ? (

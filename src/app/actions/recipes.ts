@@ -12,7 +12,7 @@ export async function getRecipes() {
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['qtyPerPortion'] }
+                    through: { attributes: ['qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita', 'isSecukupnya'] }
                 }
             ],
             order: [['name', 'ASC']]
@@ -32,7 +32,11 @@ export async function getRecipes() {
                 id: i.id,
                 name: i.name,
                 unit: i.unit,
-                qtyPerPortion: (i as any).RecipeIngredient?.qtyPerPortion || 0
+                qtyBesar: (i as any).RecipeIngredient?.qtyBesar || 0,
+                qtyKecil: (i as any).RecipeIngredient?.qtyKecil || null,
+                qtyBumil: (i as any).RecipeIngredient?.qtyBumil || null,
+                qtyBalita: (i as any).RecipeIngredient?.qtyBalita || null,
+                isSecukupnya: (i as any).RecipeIngredient?.isSecukupnya || false,
             }))
         }));
     } catch (error) {
@@ -41,7 +45,24 @@ export async function getRecipes() {
     }
 }
 
-export async function createRecipe(data: { name: string; description: string; portionSize: number; calories?: number; carbs?: number; protein?: number; fat?: number; ingredients: { name: string; qty: number; unit: string }[] }) {
+export async function createRecipe(data: {
+    name: string;
+    description: string;
+    portionSize: number;
+    calories?: number;
+    carbs?: number;
+    protein?: number;
+    fat?: number;
+    ingredients: {
+        name: string;
+        qtyBesar: number;
+        qtyKecil?: number;
+        qtyBumil?: number;
+        qtyBalita?: number;
+        unit: string;
+        isSecukupnya?: boolean;
+    }[]
+}) {
     const session = await getSession();
     if (!session) return { error: 'Unauthorized' };
 
@@ -83,7 +104,11 @@ export async function createRecipe(data: { name: string; description: string; po
                 await RecipeIngredient.create({
                     recipeId: recipe.id,
                     ingredientId: ingredient.id,
-                    qtyPerPortion: item.qty // This is strict per-portion quantity
+                    qtyBesar: item.isSecukupnya ? 0 : item.qtyBesar,
+                    qtyKecil: item.isSecukupnya ? 0 : (Number(item.qtyKecil) || 0),
+                    qtyBumil: item.isSecukupnya ? 0 : (Number(item.qtyBumil) || 0),
+                    qtyBalita: item.isSecukupnya ? 0 : (Number(item.qtyBalita) || 0),
+                    isSecukupnya: item.isSecukupnya || false
                 });
             }
         }
@@ -108,5 +133,125 @@ export async function deleteRecipe(id: string) {
         return { success: true };
     } catch (error) {
         return { error: 'Failed' };
+    }
+}
+export async function updateRecipe(id: string, data: {
+    name: string;
+    description: string;
+    portionSize: number;
+    calories?: number;
+    carbs?: number;
+    protein?: number;
+    fat?: number;
+    ingredients: {
+        name: string;
+        qtyBesar: number;
+        qtyKecil?: number;
+        qtyBumil?: number;
+        qtyBalita?: number;
+        unit: string;
+        isSecukupnya?: boolean;
+    }[]
+}) {
+    const session = await getSession();
+    if (!session || !['AHLI_GIZI', 'SUPER_ADMIN'].includes(session.role)) {
+        return { error: 'Permission denied' };
+    }
+
+    try {
+        const recipe = await Recipe.findByPk(id);
+        if (!recipe) return { error: 'Recipe not found' };
+
+        await recipe.update({
+            name: data.name,
+            description: data.description,
+            portionSize: data.portionSize || 1,
+            calories: data.calories || undefined,
+            carbs: data.carbs || undefined,
+            protein: data.protein || undefined,
+            fat: data.fat || undefined,
+        });
+
+        // Sync ingredients: Delete old, create new
+        await RecipeIngredient.destroy({ where: { recipeId: id } });
+
+        if (data.ingredients.length > 0) {
+            for (const item of data.ingredients) {
+                let ingredient = await Ingredient.findOne({
+                    where: sequelize.where(
+                        sequelize.fn('lower', sequelize.col('name')),
+                        sequelize.fn('lower', item.name)
+                    )
+                });
+
+                if (!ingredient) {
+                    ingredient = await Ingredient.create({
+                        name: item.name,
+                        unit: item.unit,
+                        currentStock: 0,
+                        minimumStock: 10
+                    });
+                }
+
+                await RecipeIngredient.create({
+                    recipeId: id,
+                    ingredientId: ingredient.id,
+                    qtyBesar: item.isSecukupnya ? 0 : item.qtyBesar,
+                    qtyKecil: item.isSecukupnya ? 0 : (Number(item.qtyKecil) || 0),
+                    qtyBumil: item.isSecukupnya ? 0 : (Number(item.qtyBumil) || 0),
+                    qtyBalita: item.isSecukupnya ? 0 : (Number(item.qtyBalita) || 0),
+                    isSecukupnya: item.isSecukupnya || false
+                });
+            }
+        }
+
+        revalidatePath('/recipes');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error updating recipe:', error);
+        return { error: error.message || 'Failed to update recipe' };
+    }
+}
+export async function getRecipeByName(name: string) {
+    try {
+        const recipe = await Recipe.findOne({
+            where: sequelize.where(
+                sequelize.fn('lower', sequelize.col('name')),
+                sequelize.fn('lower', name.trim())
+            ),
+            include: [
+                {
+                    model: Ingredient,
+                    as: 'ingredients',
+                    through: { attributes: ['qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita'] }
+                }
+            ]
+        });
+
+        if (!recipe) return null;
+
+        return {
+            id: recipe.id,
+            name: recipe.name,
+            description: recipe.description,
+            portionSize: recipe.portionSize,
+            calories: recipe.calories,
+            carbs: recipe.carbs,
+            protein: recipe.protein,
+            fat: recipe.fat,
+            ingredients: (recipe as any).ingredients.map((i: any) => ({
+                id: i.id,
+                name: i.name,
+                unit: i.unit,
+                qtyBesar: (i as any).RecipeIngredient?.qtyBesar || 0,
+                qtyKecil: (i as any).RecipeIngredient?.qtyKecil || null,
+                qtyBumil: (i as any).RecipeIngredient?.qtyBumil || null,
+                qtyBalita: (i as any).RecipeIngredient?.qtyBalita || null,
+                isSecukupnya: (i as any).RecipeIngredient?.isSecukupnya || false,
+            }))
+        };
+    } catch (error) {
+        console.error('Error fetching recipe by name:', error);
+        return null;
     }
 }

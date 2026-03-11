@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,19 +14,23 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Plus, X } from 'lucide-react';
-import { createRecipe } from '@/app/actions/recipes';
+import { Checkbox } from '@/components/ui/checkbox';
+import { createRecipe, updateRecipe } from '@/app/actions/recipes';
 import { toast } from 'sonner';
+import { IngredientCombobox } from '@/components/shared/IngredientCombobox';
+import { formatRecipeQty } from '@/lib/utils';
 
 interface CreateRecipeDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess: () => void;
+    recipeToEdit?: any;
 }
 
-export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateRecipeDialogProps) {
+export function CreateRecipeDialog({ open, onOpenChange, onSuccess, recipeToEdit }: CreateRecipeDialogProps) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [portionSize, setPortionSize] = useState(1);
+    const [portionSize, setPortionSize] = useState<number | string>(1);
 
     // Nutrition states
     const [calories, setCalories] = useState<number | ''>('');
@@ -34,15 +38,94 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
     const [protein, setProtein] = useState<number | ''>('');
     const [fat, setFat] = useState<number | ''>('');
 
-    const [ingredients, setIngredients] = useState<{ tempId: number, name: string; qty: number; unit: string }[]>([]);
+    const [ingredients, setIngredients] = useState<{
+        tempId: number,
+        name: string;
+        qtyBesar: number | '';
+        qtyKecil: number | '';
+        qtyBumil: number | '';
+        qtyBalita: number | '';
+        unit: string;
+        isSecukupnya: boolean;
+    }[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Initialize for edit
+    useState(() => {
+        if (recipeToEdit && open) {
+            setName(recipeToEdit.name);
+            setDescription(recipeToEdit.description || '');
+            setPortionSize(recipeToEdit.portionSize);
+            setCalories(recipeToEdit.calories || '');
+            setCarbs(recipeToEdit.carbs || '');
+            setProtein(recipeToEdit.protein || '');
+            setFat(recipeToEdit.fat || '');
+            setIngredients(recipeToEdit.ingredients.map((ing: any) => ({
+                tempId: Math.random(),
+                name: ing.name,
+                isSecukupnya: Number(ing.qtyBesar) === 0,
+                qtyBesar: Number(parseFloat(String(ing.qtyBesar)).toFixed(4)),
+                qtyKecil: ing.qtyKecil ? Number(parseFloat(String(ing.qtyKecil)).toFixed(4)) : '',
+                qtyBumil: ing.qtyBumil ? Number(parseFloat(String(ing.qtyBumil)).toFixed(4)) : '',
+                qtyBalita: ing.qtyBalita ? Number(parseFloat(String(ing.qtyBalita)).toFixed(4)) : '',
+                unit: ing.unit
+            })));
+        }
+    });
+
+    // Reset on close or change recipeToEdit
+    useEffect(() => {
+        if (open) {
+            if (recipeToEdit) {
+                setName(recipeToEdit.name);
+                setDescription(recipeToEdit.description || '');
+                setPortionSize(recipeToEdit.portionSize);
+                setCalories(recipeToEdit.calories || '');
+                setCarbs(recipeToEdit.carbs || '');
+                setProtein(recipeToEdit.protein || '');
+                setFat(recipeToEdit.fat || '');
+                setIngredients(recipeToEdit.ingredients.map((ing: any) => ({
+                    tempId: Math.random(),
+                    name: ing.name,
+                    isSecukupnya: Number(ing.qtyBesar) === 0,
+                    qtyBesar: Number(parseFloat(String(ing.qtyBesar)).toFixed(4)),
+                    qtyKecil: ing.qtyKecil ? Number(parseFloat(String(ing.qtyKecil)).toFixed(4)) : '',
+                    qtyBumil: ing.qtyBumil ? Number(parseFloat(String(ing.qtyBumil)).toFixed(4)) : '',
+                    qtyBalita: ing.qtyBalita ? Number(parseFloat(String(ing.qtyBalita)).toFixed(4)) : '',
+                    unit: ing.unit
+                })));
+            } else {
+                setName('');
+                setDescription('');
+                setPortionSize(1);
+                setCalories('');
+                setCarbs('');
+                setProtein('');
+                setFat('');
+                setIngredients([]);
+            }
+        }
+    }, [open, recipeToEdit]);
+
     const addEmptyRow = () => {
-        setIngredients([...ingredients, { tempId: Date.now(), name: '', qty: 0.1, unit: 'kg' }]);
+        setIngredients([...ingredients, {
+            tempId: Date.now(),
+            name: '',
+            isSecukupnya: false,
+            qtyBesar: 0.1,
+            qtyKecil: '',
+            qtyBumil: '',
+            qtyBalita: '',
+            unit: 'kg'
+        }]);
     };
 
     const updateIngredient = (tempId: number, field: keyof typeof ingredients[0], value: any) => {
-        setIngredients(ingredients.map(i => i.tempId === tempId ? { ...i, [field]: value } : i));
+        setIngredients(prev => prev.map(i => i.tempId === tempId ? { ...i, [field]: value } : i));
+    };
+
+    const updateIngredientMultiple = (tempId: number, updates: Partial<typeof ingredients[0]>) => {
+        setIngredients(prev => prev.map(i => i.tempId === tempId ? { ...i, ...updates } : i));
     };
 
     const removeIngredient = (tempId: number) => {
@@ -59,26 +142,33 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
 
         setLoading(true);
 
+        const p = typeof portionSize === 'string' ? parseFloat(portionSize) : portionSize;
         const payload = {
             name,
             description,
-            portionSize,
+            portionSize: isNaN(p) ? 1 : p,
             calories: calories === '' ? undefined : calories,
             carbs: carbs === '' ? undefined : carbs,
             protein: protein === '' ? undefined : protein,
             fat: fat === '' ? undefined : fat,
             ingredients: ingredients.map(i => ({
                 name: i.name.trim(),
-                qty: i.qty,
+                qtyBesar: i.isSecukupnya ? 0 : (Number(i.qtyBesar) || 0),
+                qtyKecil: i.isSecukupnya ? undefined : (i.qtyKecil === '' ? undefined : Number(i.qtyKecil)),
+                qtyBumil: i.isSecukupnya ? undefined : (i.qtyBumil === '' ? undefined : Number(i.qtyBumil)),
+                qtyBalita: i.isSecukupnya ? undefined : (i.qtyBalita === '' ? undefined : Number(i.qtyBalita)),
                 unit: i.unit.trim()
             }))
         };
 
-        const res = await createRecipe(payload);
+        const res = recipeToEdit
+            ? await updateRecipe(recipeToEdit.id, payload)
+            : await createRecipe(payload);
+
         setLoading(false);
 
         if (res.success) {
-            toast.success('Resep berhasil dibuat');
+            toast.success(recipeToEdit ? 'Resep berhasil diperbarui' : 'Resep berhasil dibuat');
             onOpenChange(false);
             setName('');
             setDescription('');
@@ -98,7 +188,7 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Buat Resep Baru</DialogTitle>
+                    <DialogTitle>{recipeToEdit ? 'Edit Resep Standard' : 'Buat Resep Baru'}</DialogTitle>
                     <DialogDescription>
                         Tentukan bahan dan gramasi untuk <b>1 Porsi</b> (atau sesuai porsi dasar).
                     </DialogDescription>
@@ -122,7 +212,7 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
                                 type="number"
                                 min="1"
                                 value={portionSize}
-                                onChange={(e) => setPortionSize(parseInt(e.target.value) || 1)}
+                                onChange={(e) => setPortionSize(e.target.value === '' ? '' : (parseInt(e.target.value) || 1))}
                                 placeholder="1"
                                 required
                             />
@@ -200,47 +290,105 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess }: CreateReci
                             </Button>
                         </div>
 
-                        <div className="space-y-2 mt-2">
+                        <div className="space-y-4 mt-2">
                             {ingredients.map((item) => (
-                                <div key={item.tempId} className="flex items-end gap-2 p-3 bg-secondary/20 rounded-md border">
-                                    <div className="flex-1 space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Nama Bahan</Label>
-                                        <Input
-                                            value={item.name}
-                                            onChange={(e) => updateIngredient(item.tempId, 'name', e.target.value)}
-                                            placeholder="Bahan"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="w-24 space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Qty / Porsi</Label>
-                                        <Input
-                                            type="number"
-                                            min="0.0001"
-                                            step="0.0001"
-                                            value={item.qty}
-                                            onChange={(e) => updateIngredient(item.tempId, 'qty', parseFloat(e.target.value))}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="w-24 space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Satuan</Label>
-                                        <Input
-                                            value={item.unit}
-                                            onChange={(e) => updateIngredient(item.tempId, 'unit', e.target.value)}
-                                            placeholder="kg, ltr"
-                                            required
-                                        />
-                                    </div>
+                                <div key={item.tempId} className="space-y-3 p-4 bg-secondary/10 rounded-lg border border-secondary/20 relative">
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        className="h-10 w-10 text-destructive hover:bg-destructive/10 mb-[1px]"
+                                        className="h-8 w-8 text-destructive absolute top-2 right-2"
                                         onClick={() => removeIngredient(item.tempId)}
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
+
+                                    <div className="grid grid-cols-12 gap-3 items-end">
+                                        <div className="col-span-12 lg:col-span-6 space-y-1">
+                                            <Label className="text-xs font-semibold">Nama Bahan</Label>
+                                            <IngredientCombobox
+                                                value={item.name}
+                                                onSelectIngredient={(ing) => {
+                                                    updateIngredientMultiple(item.tempId, {
+                                                        name: ing.name,
+                                                        unit: ing.unit
+                                                    });
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="col-span-6 lg:col-span-6 py-2 px-3 bg-muted/30 rounded-md text-sm font-medium border border-dashed flex items-center gap-2">
+                                            <span className="text-muted-foreground">Satuan:</span>
+                                            <span className="text-primary">{item.unit || '-'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 pt-2 pb-1">
+                                        <Checkbox
+                                            id={`secukupnya-${item.tempId}`}
+                                            checked={item.isSecukupnya}
+                                            onCheckedChange={(checked) => updateIngredient(item.tempId, 'isSecukupnya', !!checked)}
+                                        />
+                                        <label htmlFor={`secukupnya-${item.tempId}`} className="text-xs font-medium text-amber-700 cursor-pointer select-none">
+                                            Secukupnya (tidak ada qty pasti)
+                                        </label>
+                                    </div>
+
+                                    <div className="grid grid-cols-4 gap-3 pt-2">
+                                        {item.isSecukupnya ? (
+                                            <div className="col-span-4 flex items-center gap-2 py-2 px-3 bg-amber-50 border border-amber-200 rounded-md">
+                                                <span className="text-xs font-bold text-amber-700">⚡ Secukupnya</span>
+                                                <span className="text-[10px] text-amber-600">— qty otomatis 0, tidak perlu diisi</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase font-bold text-primary">Besar (Base)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0.0001"
+                                                        step="0.0001"
+                                                        value={item.qtyBesar}
+                                                        onChange={(e) => updateIngredient(item.tempId, 'qtyBesar', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                        required
+                                                        className="h-8 text-sm font-bold border-primary/30"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase font-bold text-blue-600">Kecil</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.0001"
+                                                        value={item.qtyKecil}
+                                                        onChange={(e) => updateIngredient(item.tempId, 'qtyKecil', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase font-bold text-pink-600">Bumil / Busui</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.0001"
+                                                        value={item.qtyBumil}
+                                                        onChange={(e) => updateIngredient(item.tempId, 'qtyBumil', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-[10px] uppercase font-bold text-orange-600">Balita</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.0001"
+                                                        value={item.qtyBalita}
+                                                        onChange={(e) => updateIngredient(item.tempId, 'qtyBalita', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                        className="h-8 text-sm"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

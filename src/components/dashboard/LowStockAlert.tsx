@@ -24,23 +24,24 @@ export function LowStockAlert({ items }: LowStockAlertProps) {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="overflow-hidden border-2 shadow-sm">
+      <CardHeader className="pb-3 border-b bg-muted/10">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-            Peringatan Stok Rendah
+          <CardTitle className="flex items-center gap-2 text-base font-black tracking-tight">
+            <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+            STOK RENDAH
           </CardTitle>
-          <Badge variant="secondary" className="font-mono">
-            {items.length} item
+          <Badge variant="secondary" className="font-black text-[10px] bg-white border shadow-sm">
+            {items.length} ITEM
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="p-4 space-y-3">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Semua stok dalam kondisi baik
-          </p>
+          <div className="flex flex-col items-center justify-center py-6 opacity-30">
+            <AlertTriangle className="h-8 w-8 mb-1" />
+            <p className="text-xs font-bold">Stok Aman</p>
+          </div>
         ) : (
           items.map((item) => {
             const level = getStockLevel(item.currentStock, item.minimumStock);
@@ -48,37 +49,37 @@ export function LowStockAlert({ items }: LowStockAlertProps) {
               <div
                 key={item.id}
                 className={cn(
-                  "flex items-center justify-between rounded-lg p-3 transition-colors",
-                  level === "critical" && "bg-destructive/10",
-                  level === "low" && "bg-warning/10 pulse-warning",
-                  level === "warning" && "bg-warning/5"
+                  "flex items-center justify-between rounded-xl p-3 transition-all border border-transparent",
+                  level === "critical" && "bg-destructive/5 border-destructive/10",
+                  level === "low" && "bg-accent/5 border-accent/10",
+                  level === "warning" && "bg-muted/30 border-muted-foreground/10"
                 )}
               >
-                <div>
-                  <p className="font-medium text-sm">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <p className="font-black text-sm truncate uppercase tracking-tight">{item.name}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold italic">
                     Min: {item.minimumStock} {item.unit}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={cn(
-                    "font-mono font-semibold text-sm",
+                  <div className={cn(
+                    "font-black text-sm",
                     level === "critical" && "text-destructive",
-                    level === "low" && "text-warning",
-                    level === "warning" && "text-warning/80"
+                    level === "low" && "text-accent-foreground",
+                    level === "warning" && "text-muted-foreground"
                   )}>
                     {item.currentStock} {item.unit}
-                  </p>
-                  <Badge 
+                  </div>
+                  <Badge
                     variant="secondary"
                     className={cn(
-                      "text-[10px] mt-1",
-                      level === "critical" && "bg-destructive/20 text-destructive",
-                      level === "low" && "bg-warning/20 text-warning",
-                      level === "warning" && "bg-warning/10 text-warning/80"
+                      "text-[8px] h-4 font-black uppercase mt-0.5",
+                      level === "critical" && "bg-destructive text-white",
+                      level === "low" && "bg-accent text-accent-foreground",
+                      level === "warning" && "bg-muted-foreground text-white"
                     )}
                   >
-                    {level === "critical" ? "Kritis" : level === "low" ? "Rendah" : "Perhatian"}
+                    {level === "critical" ? "Kritis" : level === "low" ? "Rendah" : "Pantau"}
                   </Badge>
                 </div>
               </div>

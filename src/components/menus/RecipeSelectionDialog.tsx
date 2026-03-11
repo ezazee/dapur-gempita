@@ -21,6 +21,7 @@ import {
 import { Search } from 'lucide-react';
 import { getRecipes } from '@/app/actions/recipes';
 import { toast } from 'sonner';
+import { cookingStepsSummary } from '@/components/shared/CookingSteps';
 
 interface RecipeSelectionDialogProps {
     open: boolean;
@@ -110,8 +111,8 @@ export function RecipeSelectionDialog({ open, onOpenChange, onSelect }: RecipeSe
                                 filteredRecipes.map((recipe) => (
                                     <TableRow key={recipe.id}>
                                         <TableCell className="font-medium">{recipe.name}</TableCell>
-                                        <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-[200px]">
-                                            {recipe.description}
+                                        <TableCell className="hidden md:table-cell text-muted-foreground max-w-[200px]">
+                                            <span className="text-xs">{recipe.description ? cookingStepsSummary(recipe.description) : '-'}</span>
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {recipe.portionSize} pax

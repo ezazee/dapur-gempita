@@ -18,13 +18,13 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
-  profile: User | null; // Alias for user to match legacy interface if needed
+  profile: User | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Permission mapping by role
-const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
+// Legacy/Static Permissions for safety or specific flags not in modules
+const STATIC_PERMISSIONS: Record<AppRole, string[]> = {
   SUPER_ADMIN: ['*'],
   ADMIN: [
     'dashboard.read',
@@ -39,30 +39,29 @@ const ROLE_PERMISSIONS: Record<AppRole, string[]> = {
   ],
   AHLI_GIZI: [
     'menu.create', 'menu.read', 'menu.update', 'menu.delete',
-    'ingredient.create', 'ingredient.read', 'ingredient.update',
+    'recipe.create', 'recipe.read', 'recipe.update', 'recipe.delete',
+    'upload.photo',
   ],
   KEUANGAN: [
     'purchase.create', 'purchase.read', 'purchase.update',
     'ingredient.read',
+    'stock.read',
     'menu.read',
     'upload.photo',
   ],
   ASLAP: [
     'receipt.create', 'receipt.read', 'receipt.validate',
     'purchase.read',
-    'ingredient.read',
+    'ingredient.read', 'ingredient.update',
+    'stock.read', 'stock.adjust',
     'upload.photo',
   ],
   CHEF: [
     'production.create', 'production.read', 'production.update',
     'menu.read',
     'ingredient.read',
-    'receipt.read',
-    'purchase.read',
     'stock.read',
-    'report.read', 'report.create',
     'upload.photo',
-    'dashboard.read',
   ],
   KEPALA_DAPUR: [
     'dashboard.read',
@@ -105,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const result = await serverLogin(email, password);
     if (result.success) {
-      // Re-fetch session to update state locally
       await checkSession();
       return { error: null };
     }
@@ -115,13 +113,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await serverLogout();
     setUser(null);
-    router.refresh(); // Refresh to trigger middleware redirect if needed
+    router.refresh();
   };
 
   const hasPermission = (permission: string): boolean => {
     if (!user || !user.role) return false;
-    const permissions = ROLE_PERMISSIONS[user.role];
-    return permissions.includes('*') || permissions.includes(permission);
+
+    // Super Admin has all access
+    if (user.role === 'SUPER_ADMIN') return true;
+
+    // Check static permissions
+    const perms = STATIC_PERMISSIONS[user.role] || [];
+    return perms.includes('*') || perms.includes(permission);
   };
 
   return (

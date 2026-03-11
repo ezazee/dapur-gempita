@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Star, MessageSquare, FileBarChart, CheckCircle2, AlertCircle, Info, Calendar, Users2 } from 'lucide-react';
+import { Star, MessageSquare, FileBarChart, CheckCircle2, AlertCircle, Info, Calendar, Users2, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getMenus } from '@/app/actions/menus';
 import { EvaluateMenuDialog } from '@/components/menus/EvaluateMenuDialog';
@@ -15,6 +15,7 @@ import { MenuStatisticsDialog } from '@/components/menus/MenuStatisticsDialog';
 import { toast } from 'sonner';
 import { Badge } from "@/components/ui/badge";
 import { RouteGuard } from '@/components/RouteGuard';
+import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
 
 export default function EvaluationsPage() {
@@ -37,7 +38,72 @@ export default function EvaluationsPage() {
         setLoading(true);
         try {
             const data = await getMenus();
-            setMenus(data);
+
+            // Group menus by date
+            const grouped = data.reduce((acc: any, menu: any) => {
+                // Filter out junk menus with 0 portions
+                const totalPortions = (menu.countBesar || 0) + (menu.countKecil || 0) + (menu.countBumil || 0) + (menu.countBalita || 0);
+                if (totalPortions === 0) return acc;
+
+                const dateKey = format(new Date(menu.menuDate), 'yyyy-MM-dd');
+                if (!acc[dateKey]) {
+                    acc[dateKey] = {
+                        id: `group-${dateKey}`, // virtual ID for react key
+                        menuDate: menu.menuDate,
+                        name: menu.name,
+                        description: menu.description,
+                        portionCount: 0,
+                        evaluatorId: null,
+                        productionCount: 0,
+                        countBesar: 0,
+                        countKecil: 0,
+                        countBumil: 0,
+                        countBalita: 0,
+                        ingredients: [],
+                        originalMenus: []
+                    };
+                }
+
+                const g = acc[dateKey];
+                g.originalMenus.push(menu);
+
+                // Aggregate name (Ompreng + Kering)
+                if (g.originalMenus.length > 1) {
+                    const names = g.originalMenus.map((m: any) => m.name).join(' & ');
+                    g.name = names;
+                } else {
+                    g.name = menu.name;
+                }
+
+                // Aggregate descriptions
+                if (g.description !== menu.description && menu.description) {
+                    g.description = g.description ? `${g.description} | ${menu.description}` : menu.description;
+                }
+
+                // Sum portions
+                g.countBesar += (menu.countBesar || 0);
+                g.countKecil += (menu.countKecil || 0);
+                g.countBumil += (menu.countBumil || 0);
+                g.countBalita += (menu.countBalita || 0);
+                g.portionCount += (menu.countBesar || 0) + (menu.countKecil || 0) + (menu.countBumil || 0) + (menu.countBalita || 0);
+
+                // Max production count
+                g.productionCount = Math.max(g.productionCount, menu.productionCount || 0);
+
+                // Combine and track unique ingredients (to avoid visual duplicates if Kering & Ompreng use the same ingredient somehow)
+                // Actually, let's just combine them flat since our form iterates them
+                g.ingredients = [...g.ingredients, ...(menu.ingredients || [])];
+
+                // Evaluator logic: Considered evaluated only if ALL original menus are evaluated
+                const allEvaluated = g.originalMenus.every((m: any) => !!m.evaluatorId);
+                g.evaluatorId = allEvaluated ? 'evaluated' : null;
+
+                return acc;
+            }, {});
+
+            const sortedGroups = Object.values(grouped).sort((a: any, b: any) => new Date(b.menuDate).getTime() - new Date(a.menuDate).getTime());
+
+            setMenus(sortedGroups);
         } catch (error) {
             toast.error('Gagal mengambil data menu');
         } finally {
@@ -86,7 +152,7 @@ export default function EvaluationsPage() {
                                 return (
                                     <Card key={menu.id} className={cn(
                                         "transition-all duration-200 border-2",
-                                        isEvaluated ? "hover:border-primary/20" : "border-yellow-200 bg-yellow-50/10"
+                                        isEvaluated ? "hover:border-primary/20" : "border-accent/20 bg-accent/5"
                                     )}>
                                         <CardHeader className="pb-3">
                                             <div className="flex justify-between items-start mb-2">
@@ -101,16 +167,30 @@ export default function EvaluationsPage() {
                                                     </div>
                                                 </div>
                                                 {isEvaluated ? (
-                                                    <Badge className="bg-green-600 hover:bg-green-700">
-                                                        <CheckCircle2 className="h-3 w-3 mr-1" /> Ter-evaluasi
+                                                    <StatusBadge status="evaluated" />
+                                                ) : menu.productionCount > 0 ? (
+                                                    <Badge variant="outline" className="text-destructive border-destructive bg-destructive/5 animate-pulse font-bold">
+                                                        <AlertCircle className="h-3 w-3 mr-1" /> WAJIB EVALUASI
                                                     </Badge>
                                                 ) : (
-                                                    <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50 animate-pulse">
-                                                        <AlertCircle className="h-3 w-3 mr-1" /> Perlu Evaluasi
-                                                    </Badge>
+                                                    <StatusBadge status="pending" />
                                                 )}
                                             </div>
-                                            <CardTitle className="text-xl font-bold line-clamp-1">{menu.name}</CardTitle>
+                                            <div className="space-y-1">
+                                                <CardTitle className="text-xl font-bold line-clamp-1">{menu.name}</CardTitle>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {menu.originalMenus?.some((m: any) => m.menuType === 'OMPRENG') && (
+                                                        <Badge variant="secondary" className="text-[10px] bg-blue-50 text-blue-700 border-blue-100 font-bold uppercase tracking-tighter h-5 px-1.5">
+                                                            Menu Masak
+                                                        </Badge>
+                                                    )}
+                                                    {menu.originalMenus?.some((m: any) => m.menuType === 'KERING') && (
+                                                        <Badge variant="secondary" className="text-[10px] bg-amber-50 text-amber-700 border-amber-100 font-bold uppercase tracking-tighter h-5 px-1.5">
+                                                            Menu Kering
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
                                             <CardDescription className="line-clamp-2 min-h-[40px]">
                                                 {menu.description || 'Tidak ada deskripsi tambahan.'}
                                             </CardDescription>
@@ -125,11 +205,11 @@ export default function EvaluationsPage() {
                                                     <Progress value={accuracyPercentage} className="h-2" />
                                                     <div className="flex justify-between text-xs text-muted-foreground pt-1">
                                                         <span className="flex items-center gap-1">
-                                                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                            <div className="w-2 h-2 rounded-full bg-success" />
                                                             {perfectlyFitted} Pas
                                                         </span>
                                                         <span className="flex items-center gap-1">
-                                                            <div className="w-2 h-2 rounded-full bg-orange-400" />
+                                                            <div className="w-2 h-2 rounded-full bg-destructive" />
                                                             {issuesCount} Bermasalah
                                                         </span>
                                                         <span>Total: {totalIngredients}</span>
@@ -141,23 +221,24 @@ export default function EvaluationsPage() {
                                                 </div>
                                             )}
                                         </CardContent>
-                                        <CardFooter className="pt-2 gap-2">
+                                        <CardFooter className="pt-2 flex flex-col sm:flex-row gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="flex-1"
+                                                className="w-full sm:flex-1 py-1 h-9"
                                                 onClick={() => handleStatsClick(menu)}
                                             >
                                                 <FileBarChart className="h-4 w-4 mr-2" /> Riwayat
                                             </Button>
                                             {canEvaluate && (
                                                 <Button
-                                                    variant={isEvaluated ? "secondary" : "default"}
+                                                    variant={isEvaluated ? "secondary" : (menu.productionCount > 0 ? "destructive" : "outline")}
                                                     size="sm"
-                                                    className="flex-[1.5]"
+                                                    className={cn("w-full sm:flex-[1.5] py-1 h-9", menu.productionCount > 0 && !isEvaluated && "animate-bounce")}
                                                     onClick={() => handleEvaluateClick(menu)}
+                                                    disabled={menu.productionCount === 0 && !isEvaluated}
                                                 >
-                                                    {isEvaluated ? 'Ubah Evaluasi' : 'Beri Evaluasi'}
+                                                    {isEvaluated ? 'Ubah Evaluasi' : menu.productionCount > 0 ? 'Mulai Evaluasi' : 'Belum Dimasak'}
                                                 </Button>
                                             )}
                                         </CardFooter>
