@@ -19,7 +19,8 @@ import {
     Package,
     CheckCircle2,
     Clock,
-    AlertCircle
+    AlertCircle,
+    ShoppingCart
 } from "lucide-react";
 import { getDailyMonitoring } from "@/app/actions/monitoring";
 import { toast } from "sonner";
@@ -55,8 +56,12 @@ export default function MonitoringPage() {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
+            case 'STOCK_READY':
+                return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200"><Package className="w-3 h-3 mr-1" /> Stok Gudang</Badge>;
             case 'RECEIVED':
-                return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Lengkap</Badge>;
+                return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Diterima</Badge>;
+            case 'ON_PURCHASE':
+                return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"><ShoppingCart className="w-3 h-3 mr-1" /> Sudah Dibeli</Badge>;
             case 'PARTIAL':
                 return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-yellow-200"><AlertCircle className="w-3 h-3 mr-1" /> Sebagian</Badge>;
             default:
@@ -279,9 +284,10 @@ export default function MonitoringPage() {
                     <AlertCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
                     <div className="text-xs text-muted-foreground space-y-1">
                         <p className="font-semibold text-foreground">Informasi Monitoring:</p>
-                        <p>1. Data ini diupdate secara real-time setiap kali ASLAP melakukan validasi penerimaan barang.</p>
-                        <p>2. **Berat Kotor** adalah berat barang saat ditimbang pertama kali (termasuk kemasan/wadah).</p>
-                        <p>3. **Berat Bersih** adalah berat isi barang yang sebenarnya akan masuk ke stok gudang.</p>
+                        <p>1. Data ini diupdate secara real-time berdasarkan stok gudang, pembelian, dan penerimaan ASLAP.</p>
+                        <p>2. **Stok Gudang**: Bahan sudah tersedia dari stok sebelumnya.</p>
+                        <p>3. **Sudah Dibeli**: Sudah diproses oleh Keuangan, menunggu verifikasi fisik oleh ASLAP.</p>
+                        <p>4. **Diterima**: Sudah diverifikasi dan ditimbang oleh ASLAP hari ini.</p>
                     </div>
                 </div>
             </div>

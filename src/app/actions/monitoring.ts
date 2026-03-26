@@ -17,18 +17,17 @@ export async function getDailyMonitoring() {
         throw new Error('Unauthorized');
     }
     try {
+        const { Purchase, PurchaseItem } = await import('@/models');
+
         // 1. Get Today's Range in Jakarta Time (UTC+7)
-        // Adjust for local server time being UTC if necessary
         const now = new Date();
         const today = now;
         const jakartaOffset = 7 * 60; // 7 hours in minutes
         const localOffset = now.getTimezoneOffset(); // in minutes (negative for UTC+7)
 
-        // Target: Today at 00:00:00 and 23:59:59 in Jakarta
         const start = new Date(now);
         start.setMinutes(now.getMinutes() + localOffset + jakartaOffset);
         start.setHours(0, 0, 0, 0);
-        // Convert back to UTC for DB query if DB is UTC
         const dbStart = new Date(start.getTime() - (jakartaOffset + localOffset) * 60000);
 
         const end = new Date(start);
@@ -62,21 +61,37 @@ export async function getDailyMonitoring() {
                 {
                     model: ReceiptItem,
                     as: 'items',
-                    include: [{ model: Ingredient, as: 'ingredient', attributes: ['name', 'unit', 'category'] }]
+                    include: [{ model: Ingredient, as: 'ingredient', attributes: ['name', 'unit', 'category', 'currentStock'] }]
                 }
             ]
         });
 
-        // 3. Map Ingredients from Menus to Receipt Weights
+        // 3. Get Pending/Approved Purchases (Potential Stock)
+        // We look for approved purchases that might support today's menus
+        const pendingPurchases = await Purchase.findAll({
+            where: {
+                status: 'approved'
+            },
+            include: [
+                {
+                    model: PurchaseItem,
+                    as: 'items'
+                }
+            ]
+        });
+
+        // 4. Map Ingredients from Menus to Status
         const ingredientMap: Record<string, {
             id: string;
             name: string;
             unit: string;
             neededQty: number;
-            receivedGross: number;
-            receivedNet: number;
-            status: 'PENDING' | 'RECEIVED' | 'PARTIAL';
-            receiptCount: number;
+            receivedGrossToday: number;
+            receivedNetToday: number;
+            currentStock: number;
+            purchasedQty: number;
+            status: 'PENDING' | 'RECEIVED' | 'PARTIAL' | 'STOCK_READY' | 'ON_PURCHASE';
+            receiptCountToday: number;
             types: Set<string>;
             isUnscheduled?: boolean;
             category?: string;
@@ -91,10 +106,12 @@ export async function getDailyMonitoring() {
                         unit: ing.unit,
                         category: ing.category,
                         neededQty: 0,
-                        receivedGross: 0,
-                        receivedNet: 0,
+                        receivedGrossToday: 0,
+                        receivedNetToday: 0,
+                        currentStock: ing.currentStock || 0,
+                        purchasedQty: 0,
                         status: 'PENDING',
-                        receiptCount: 0,
+                        receiptCountToday: 0,
                         types: new Set<string>(),
                         isUnscheduled: false
                     };
@@ -107,12 +124,11 @@ export async function getDailyMonitoring() {
             });
         });
 
-        // Add received data
+        // Add today's receipt data
         receipts.forEach((receipt: any) => {
             receipt.items?.forEach((item: any) => {
                 const ingId = item.ingredientId;
                 if (!ingredientMap[ingId]) {
-                    // Ingredient in receipt but not in today's menu (extra purchase)
                     const ingCat = item.ingredient?.category || 'MASAK';
                     ingredientMap[ingId] = {
                         id: ingId,
@@ -120,43 +136,65 @@ export async function getDailyMonitoring() {
                         unit: item.ingredient?.unit || 'kg',
                         category: ingCat,
                         neededQty: 0,
-                        receivedGross: 0,
-                        receivedNet: 0,
+                        receivedGrossToday: 0,
+                        receivedNetToday: 0,
+                        currentStock: item.ingredient?.currentStock || 0,
+                        purchasedQty: 0,
                         status: 'PENDING',
-                        receiptCount: 0,
+                        receiptCountToday: 0,
                         types: new Set<string>(),
                         isUnscheduled: true
                     };
-
-                    // Properly categorize extra ingredients
                     const mappedType = ingCat === 'KERING' ? 'Snack/Kering' : 'Masakan/Ompreng';
                     ingredientMap[ingId].types.add(mappedType);
                 }
-                ingredientMap[ingId].receivedGross += parseFloat(item.grossWeight || 0);
-                ingredientMap[ingId].receivedNet += parseFloat(item.netWeight || 0);
-                ingredientMap[ingId].receiptCount += 1;
+                ingredientMap[ingId].receivedGrossToday += parseFloat(item.grossWeight || 0);
+                ingredientMap[ingId].receivedNetToday += parseFloat(item.netWeight || 0);
+                ingredientMap[ingId].receiptCountToday += 1;
             });
         });
 
-        // Finalize status
+        // Add pending purchase data
+        pendingPurchases.forEach((purchase: any) => {
+            purchase.items?.forEach((item: any) => {
+                const ingId = item.ingredientId;
+                if (ingredientMap[ingId]) {
+                    ingredientMap[ingId].purchasedQty += parseFloat(item.qty || 0);
+                }
+            });
+        });
+
+        // Finalize status for each ingredient
         const results = Object.values(ingredientMap).map(item => {
-            const rNet = item.receivedNet;
-            if (item.receiptCount > 0) {
-                if (item.neededQty > 0 && rNet > 0 && rNet < item.neededQty * 0.95) {
-                    item.status = 'PARTIAL';
-                } else {
+            const needed = item.neededQty;
+            const receivedToday = item.receivedNetToday;
+            const stock = item.currentStock;
+            const purchased = item.purchasedQty;
+
+            if (needed > 0) {
+                if (stock >= needed) {
+                    item.status = 'STOCK_READY';
+                } else if (receivedToday >= needed * 0.95) {
                     item.status = 'RECEIVED';
+                } else if (receivedToday > 0) {
+                    item.status = 'PARTIAL';
+                } else if (purchased >= needed) {
+                    item.status = 'ON_PURCHASE';
+                } else {
+                    item.status = 'PENDING';
                 }
             } else {
-                item.status = 'PENDING';
+                // Unscheduled receipt
+                item.status = 'RECEIVED';
             }
+
             return {
                 ...item,
                 types: Array.from(item.types)
             };
         });
 
-        // 4. Get Today's Productions
+        // 5. Calculate Readiness PER MENU
         const todayProductions = await Production.findAll({
             where: {
                 productionDate: {
@@ -164,19 +202,28 @@ export async function getDailyMonitoring() {
                 }
             }
         });
-
         const completedMenuIds = new Set(todayProductions.map(p => p.menuId));
 
-        // 5. Calculate Readiness PER MENU
         const menuReadiness = menus.map((menu: any) => {
             let totalIngredients = 0;
             let readyIngredients = 0;
+            let purchasedIngredients = 0;
 
             menu.ingredients?.forEach((ing: any) => {
                 totalIngredients++;
                 const stats = ingredientMap[ing.id];
-                if (stats && (stats.receiptCount > 0 || stats.receivedNet >= (ing.MenuIngredient?.qtyNeeded || 0) * 0.95)) {
-                    readyIngredients++;
+                if (stats) {
+                    // Ingredient is ready if:
+                    // 1. Physically in stock enough to cover this menu
+                    // 2. Or received today specifically for this
+                    const isReady = stats.currentStock >= (ing.MenuIngredient?.qtyNeeded || 0) || 
+                                    stats.receivedNetToday >= (ing.MenuIngredient?.qtyNeeded || 0) * 0.95;
+                    
+                    if (isReady) {
+                        readyIngredients++;
+                    } else if (stats.purchasedQty >= (ing.MenuIngredient?.qtyNeeded || 0)) {
+                        purchasedIngredients++;
+                    }
                 }
             });
 
@@ -186,9 +233,15 @@ export async function getDailyMonitoring() {
                 menuType: menu.menuType || 'OMPRENG',
                 totalIngredients,
                 readyIngredients,
+                purchasedIngredients,
+                // Flexible Readiness: Ready if physically in stock OR received today
                 isReady: totalIngredients > 0 && readyIngredients === totalIngredients,
+                // Status for UI: 'READY' | 'PURCHASED' | 'PENDING'
+                overallStatus: (readyIngredients === totalIngredients) ? 'READY' : 
+                               ((readyIngredients + purchasedIngredients) === totalIngredients ? 'PURCHASED' : 'PENDING'),
                 isCompleted: completedMenuIds.has(menu.id),
                 progress: totalIngredients > 0 ? (readyIngredients / totalIngredients) * 100 : 0,
+                purchaseProgress: totalIngredients > 0 ? ((readyIngredients + purchasedIngredients) / totalIngredients) * 100 : 0,
                 countKecil: menu.countKecil || 0,
                 countBesar: menu.countBesar || 0,
                 countBumil: menu.countBumil || 0,

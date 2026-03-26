@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { getSession, login as serverLogin, logout as serverLogout } from '@/app/actions/auth';
 import { useRouter } from 'next/navigation';
@@ -36,11 +38,13 @@ const STATIC_PERMISSIONS: Record<AppRole, string[]> = {
     'stock.read', 'stock.update',
     'report.read', 'report.create', 'report.delete',
     'upload.photo',
+    'monitoring.read',
   ],
   AHLI_GIZI: [
     'menu.create', 'menu.read', 'menu.update', 'menu.delete',
     'recipe.create', 'recipe.read', 'recipe.update', 'recipe.delete',
     'upload.photo',
+    'monitoring.read',
   ],
   KEUANGAN: [
     'purchase.create', 'purchase.read', 'purchase.update',
@@ -48,6 +52,7 @@ const STATIC_PERMISSIONS: Record<AppRole, string[]> = {
     'stock.read',
     'menu.read',
     'upload.photo',
+    'monitoring.read',
   ],
   ASLAP: [
     'receipt.create', 'receipt.read', 'receipt.validate',
@@ -55,6 +60,7 @@ const STATIC_PERMISSIONS: Record<AppRole, string[]> = {
     'ingredient.read', 'ingredient.update',
     'stock.read', 'stock.adjust',
     'upload.photo',
+    'monitoring.read',
   ],
   CHEF: [
     'production.create', 'production.read', 'production.update',
@@ -62,6 +68,7 @@ const STATIC_PERMISSIONS: Record<AppRole, string[]> = {
     'ingredient.read',
     'stock.read',
     'upload.photo',
+    'monitoring.read',
   ],
   KEPALA_DAPUR: [
     'dashboard.read',
@@ -73,6 +80,7 @@ const STATIC_PERMISSIONS: Record<AppRole, string[]> = {
     'stock.read',
     'report.read',
     'audit.read',
+    'monitoring.read',
   ],
 };
 

@@ -152,7 +152,8 @@ export async function getReceipts(filters?: {
                     unit: item.ingredient?.unit || 'kg',
                     grossWeight: item.grossWeight,
                     netWeight: item.netWeight,
-                    photoUrl: item.photoUrl
+                    photoUrl: item.photoUrl,
+                    note: item.note
                 })) || []
             })),
             meta: {
@@ -176,6 +177,7 @@ interface ReceiptData {
         grossWeight: number;
         netWeight: number;
         photoUrl?: string;
+        note?: string;
     }[];
 }
 
@@ -209,6 +211,7 @@ export async function createReceipt(data: ReceiptData) {
                 grossWeight: item.grossWeight,
                 netWeight: item.netWeight,
                 photoUrl: item.photoUrl,
+                note: item.note,
                 differenceQty: 0 // Placeholder logic
             }, { transaction: t });
 

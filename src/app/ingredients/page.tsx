@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Package, AlertTriangle, Loader2, History as HistoryIcon, Settings2, ChevronLeft, ChevronRight, CookingPot, PackageOpen, LayoutGrid } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,11 +330,16 @@ export default function IngredientsPage() {
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8">
-                                            <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                                        </TableCell>
-                                    </TableRow>
+                                    Array(5).fill(0).map((_, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                            <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                                        </TableRow>
+                                    ))
                                 ) : ingredients.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">

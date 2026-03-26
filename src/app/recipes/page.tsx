@@ -5,6 +5,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Eye, Trash2, BookOpen, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
 import { getRecipes, deleteRecipe } from '@/app/actions/recipes';
 import { toast } from 'sonner';
 import { cookingStepsSummary } from '@/components/shared/CookingSteps';
@@ -148,11 +149,16 @@ export default function RecipesPage() {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
-                                        Memuat data...
-                                    </TableCell>
-                                </TableRow>
+                                Array(5).fill(0).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                                        <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-64" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-24 mx-auto" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-16 mx-auto" /></TableCell>
+                                        <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                                    </TableRow>
+                                ))
                             ) : filteredRecipes.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">

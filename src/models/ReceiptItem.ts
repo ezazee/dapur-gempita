@@ -9,6 +9,7 @@ export interface ReceiptItemAttributes {
     netWeight: number;
     differenceQty: number;
     photoUrl?: string;
+    note?: string;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -23,6 +24,7 @@ class ReceiptItem extends Model<ReceiptItemAttributes, ReceiptItemCreationAttrib
     declare public netWeight: number;
     declare public differenceQty: number;
     declare public photoUrl?: string;
+    declare public note?: string;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
@@ -63,6 +65,11 @@ ReceiptItem.init(
             type: DataTypes.TEXT,
             allowNull: true,
             field: 'photo_url'
+        },
+        note: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            field: 'note'
         },
     },
     {

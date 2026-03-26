@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { RouteGuard } from '@/components/RouteGuard';
+import { TableSkeleton, TableRowsSkeleton } from '@/components/shared/TableSkeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Pagination,
@@ -328,9 +329,7 @@ export default function MenusPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="h-24 text-center">Memuat data...</TableCell>
-                                        </TableRow>
+                                        <TableRowsSkeleton columns={6} rows={5} />
                                     ) : menus.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
@@ -493,9 +492,7 @@ export default function MenusPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">Memuat riwayat...</TableCell>
-                                        </TableRow>
+                                        <TableRowsSkeleton columns={5} rows={5} />
                                     ) : allHistory.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">

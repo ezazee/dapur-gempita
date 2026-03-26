@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Eye, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle, ShoppingCart, Info, Check, Calendar, Package, FileText, Edit, History, ClipboardList } from 'lucide-react';
@@ -411,8 +412,8 @@ export function OperationalRequestDetailDialog({ open, onOpenChange, request, pu
                                             </TableCell>
                                             <TableCell className="text-center py-3">
                                                 {item.photoUrl ? (
-                                                    <button type="button" onClick={() => setLightboxImage({ url: item.photoUrl!, name: item.name })} className="h-8 w-12 rounded overflow-hidden border hover:opacity-80 mx-auto block">
-                                                        <img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" />
+                                                    <button type="button" onClick={() => setLightboxImage({ url: item.photoUrl!, name: item.name })} className="relative h-8 w-12 rounded overflow-hidden border hover:opacity-80 mx-auto block">
+                                                        <Image src={item.photoUrl} alt={item.name} fill className="object-cover" />
                                                     </button>
                                                 ) : <span className="text-muted-foreground text-[10px]">-</span>}
                                             </TableCell>
@@ -453,7 +454,7 @@ export function OperationalRequestDetailDialog({ open, onOpenChange, request, pu
                                         <TableRow key={idx} className="border-b last:border-0 align-top hover:bg-muted/10">
                                             <TableCell className="py-3"><span className="font-semibold text-sm">{item.name}</span></TableCell>
                                             <TableCell className="text-center py-3">
-                                                {item.photoUrl ? <button type="button" onClick={() => setLightboxImage({ url: item.photoUrl!, name: item.name })} className="h-8 w-12 rounded overflow-hidden border hover:opacity-80 mx-auto block"><img src={item.photoUrl} alt={item.name} className="h-full w-full object-cover" /></button> : <span className="text-muted-foreground text-[10px]">-</span>}
+                                                {item.photoUrl ? <button type="button" onClick={() => setLightboxImage({ url: item.photoUrl!, name: item.name })} className="relative h-8 w-12 rounded overflow-hidden border hover:opacity-80 mx-auto block"><Image src={item.photoUrl} alt={item.name} fill className="object-cover" /></button> : <span className="text-muted-foreground text-[10px]">-</span>}
                                             </TableCell>
                                             <TableCell className="text-center py-3"><span className="text-[10px] text-muted-foreground">-</span></TableCell>
                                             <TableCell className="text-center py-3">
@@ -592,13 +593,17 @@ export function OperationalRequestDetailDialog({ open, onOpenChange, request, pu
                         <DialogTitle>Foto: {lightboxImage?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="flex items-center justify-center p-4 pt-0">
-                        {lightboxImage && (
-                            <img
-                                src={lightboxImage.url}
-                                alt={lightboxImage.name}
-                                className="max-w-full max-h-[80vh] object-contain rounded"
-                            />
-                        )}
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/50">
+                            {lightboxImage && (
+                                <Image
+                                    src={lightboxImage.url}
+                                    alt={lightboxImage.name}
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            )}
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

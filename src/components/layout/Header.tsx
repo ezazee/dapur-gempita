@@ -1,3 +1,5 @@
+'use client';
+
 import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,15 +34,6 @@ export function Header({ title, description }: HeaderProps) {
       <div className="flex items-center gap-2 lg:gap-4 min-w-0">
         <MobileSidebar />
         <div className="flex items-center gap-2 min-w-0">
-          <div className="lg:hidden flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-transparent overflow-hidden">
-            <Image
-              src="/Logo.png"
-              alt="Logo Gempita"
-              width={32}
-              height={32}
-              className="object-contain"
-            />
-          </div>
           <div className="min-w-0">
             <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground truncate">{title}</h1>
             {description && (

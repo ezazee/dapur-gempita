@@ -3,6 +3,7 @@
 import { User, Role } from '@/models';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import bcrypt from 'bcryptjs';
 
 const COOKIE_NAME = 'auth_session';
 
@@ -18,7 +19,8 @@ export async function login(email: string, password: string) {
             return { error: 'Email tidak ditemukan' };
         }
 
-        if (user.password !== password) {
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
             return { error: 'Password salah' };
         }
 

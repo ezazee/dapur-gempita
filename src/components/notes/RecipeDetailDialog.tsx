@@ -118,11 +118,12 @@ export function RecipeDetailDialog({ open, onOpenChange, recipe }: RecipeDetailD
                                             );
                                         }
 
+                                        const formatted = formatRecipeQty(qBase, ing.unit);
                                         return (
                                             <TableRow key={ing.id} className="hover:bg-muted/30 group transition-colors">
                                                 <TableCell className="font-bold text-foreground py-3 border-r group-hover:bg-muted/50">{ing.name}</TableCell>
-                                                <TableCell className="text-center font-black py-3 bg-primary/5 text-primary text-sm border-x border-primary/10 w-[30%]">{formatRecipeQty(qBase, ing.unit).stringValue}</TableCell>
-                                                <TableCell className="text-center text-muted-foreground font-medium py-3 border-l italic">{ing.unit}</TableCell>
+                                                <TableCell className="text-center font-black py-3 bg-primary/5 text-primary text-sm border-x border-primary/10 w-[30%]">{formatted.stringValue}</TableCell>
+                                                <TableCell className="text-center text-muted-foreground font-medium py-3 border-l italic">{formatted.unit}</TableCell>
                                             </TableRow>
                                         );
                                     })}

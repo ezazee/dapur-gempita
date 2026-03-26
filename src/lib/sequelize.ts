@@ -7,8 +7,19 @@ if (!process.env.DATABASE_URL) {
 
 // Strip sslmode from URL to prevent pg warning, rely on dialectOptions instead
 let dbUrl = process.env.DATABASE_URL;
+let isSslRequired = true;
+
 try {
     const url = new URL(process.env.DATABASE_URL);
+    
+    // Check if sslmode is explicitly false or disable
+    const sslMode = url.searchParams.get('sslmode');
+    if (sslMode === 'false' || sslMode === 'disable') {
+        isSslRequired = false;
+    } else if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        isSslRequired = false;
+    }
+
     url.searchParams.delete('sslmode');
     dbUrl = url.toString();
 } catch (e) {
@@ -16,16 +27,19 @@ try {
     console.error('Failed to parse DATABASE_URL', e);
 }
 
+const dialectOptions: any = {};
+if (isSslRequired) {
+    dialectOptions.ssl = {
+        require: true,
+        rejectUnauthorized: false, // This allows self-signed certs (Neon/Dev)
+    };
+}
+
 export const sequelize = new Sequelize(dbUrl, {
     dialect: 'postgres',
     dialectModule: pg,
     logging: false,
-    dialectOptions: {
-        ssl: {
-            require: true,
-            rejectUnauthorized: false, // This allows self-signed certs (Neon/Dev)
-        },
-    },
+    dialectOptions,
 });
 
 // Test connection

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -30,7 +32,7 @@ import { cn, formatRecipeQty } from '@/lib/utils';
 // Helper to convert URL to Base64
 const urlToBase64 = (url: string): Promise<string> => {
     return new Promise((resolve, reject) => {
-        const img = new Image();
+        const img = new window.Image();
         img.crossOrigin = 'Anonymous';
         img.src = url;
         img.onload = () => {
@@ -68,12 +70,17 @@ export default function ReportsPage() {
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [exporting, setExporting] = useState(false);
     const [logoBase64, setLogoBase64] = useState<string | null>(null);
+    const [secondaryLogoBase64, setSecondaryLogoBase64] = useState<string | null>(null);
 
-    // Pre-load logo for PDF
+    // Pre-load logos for PDF
     useEffect(() => {
-        urlToBase64('/Logo.png')
+        urlToBase64('/Logo_Yayasan_GEMPITA_black.png')
             .then(base64 => setLogoBase64(base64))
-            .catch(err => console.error('Failed to load logo:', err));
+            .catch(err => console.error('Failed to load primary logo:', err));
+
+        urlToBase64('/Logo SPPG Bengkulu.png')
+            .then(base64 => setSecondaryLogoBase64(base64))
+            .catch(err => console.error('Failed to load secondary logo:', err));
     }, []);
 
     const isReadOnly = role === 'KEPALA_DAPUR';
@@ -137,14 +144,14 @@ export default function ReportsPage() {
         if (reportData.purchases) {
             const categories = ['MASAK', 'KERING', 'OPERASIONAL'];
             categories.forEach(cat => {
-                const pRows: any[] = [['ID Transaksi', 'Tanggal', 'Bahan', 'Qty', 'Satuan', 'Status Purchasing', 'Foto (URL)', 'Catatan']];
+                const pRows: any[] = [['ID Transaksi', 'Tanggal', 'Bahan', 'Qty', 'Satuan', 'Status Purchasing', 'Foto', 'Catatan']];
                 let hasData = false;
                 reportData.purchases.forEach((p: any) => {
                     const catItems = p.items.filter((item: any) => item.category === cat);
                     if (catItems.length > 0) {
                         catItems.forEach((item: any) => {
                             const formatted = formatRecipeQty(item.qty, item.unit);
-                            pRows.push([p.id.substring(0, 8), format(new Date(p.date), 'dd/MM/yyyy'), item.name, formatted.stringValue, formatted.unit, p.status, item.photoUrl || '-', item.memo || '-']);
+                            pRows.push([p.id.substring(0, 8), format(new Date(p.date), 'dd/MM/yyyy'), item.name, formatted.stringValue, formatted.unit, p.status, item.photoUrl ? '[ADA FOTO]' : '-', item.memo || '-']);
                             hasData = true;
                         });
                         // Add empty row as separator between transactions
@@ -181,12 +188,12 @@ export default function ReportsPage() {
             types.forEach(type => {
                 const filtered = reportData.evaluations.filter((e: any) => e.menuType === type);
                 if (filtered.length > 0) {
-                    const rows = [['Tanggal', 'Menu', 'Foto (URL)', 'Porsi', 'Ketepatan (%)', 'Pas', 'Bermasalah', 'Total Bahan', 'Status', 'Catatan']];
+                    const rows = [['Tanggal', 'Menu', 'Foto', 'Porsi', 'Ketepatan (%)', 'Pas', 'Bermasalah', 'Total Bahan', 'Status', 'Catatan']];
                     filtered.forEach((e: any) => {
                         rows.push([
                             format(new Date(e.date), 'dd/MM/yyyy'),
                             e.menuName,
-                            e.photoUrl || '-',
+                            e.photoUrl ? '[ADA FOTO]' : '-',
                             e.portions,
                             `${e.accuracy}%`,
                             e.pas,
@@ -219,19 +226,19 @@ export default function ReportsPage() {
         const doc = new jsPDF();
 
         doc.setFontSize(18);
-        // Logo & Header
+        // Header Logo (Gempita)
         if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', 14, 10, 40, 15);
+            doc.addImage(logoBase64, 'PNG', 14, 10, 35, 12, undefined, 'FAST');
         }
-
+ 
         doc.setFontSize(18);
         doc.setTextColor(115, 2, 12); // #73020C Maroon
-        doc.text('LAPORAN OPERASIONAL DAPUR GEMPITA', logoBase64 ? 60 : 14, 20);
+        doc.text('LAPORAN OPERASIONAL DAPUR GEMPITA', 60, 20);
 
         doc.setFontSize(10);
         doc.setTextColor(100, 100, 100);
-        doc.text(`Periode: ${filterDate.startDate} s/d ${filterDate.endDate}`, logoBase64 ? 60 : 14, 28);
-        doc.text(`Tipe: ${reportType.toUpperCase()}`, logoBase64 ? 60 : 14, 33);
+        doc.text(`Periode: ${filterDate.startDate} s/d ${filterDate.endDate}`, 60, 28);
+        doc.text(`Tipe: ${reportType.toUpperCase()}`, 60, 33);
 
         let yPos = 45;
 
@@ -256,7 +263,7 @@ export default function ReportsPage() {
                         return [i.name, formatted.stringValue, formattedMin.stringValue, formatted.unit];
                     }),
                     theme: 'grid',
-                    headStyles: { fillColor: [115, 2, 12] } // Maroon
+                    headStyles: { fillColor: [115, 2, 12] }
                 });
                 yPos = (doc as any).lastAutoTable.finalY + 15;
             });
@@ -396,6 +403,19 @@ export default function ReportsPage() {
             yPos = (doc as any).lastAutoTable.finalY + 15;
         }
 
+        // Footer Logos Split (BGN only in footer)
+        const pageHeight = doc.internal.pageSize.height;
+        if (yPos > pageHeight - 40) { doc.addPage(); yPos = 20; }
+        
+        const footerY = pageHeight - 30;
+        try {
+            if (secondaryLogoBase64) {
+                doc.addImage(secondaryLogoBase64, 'PNG', 160, footerY, 35, 10, undefined, 'FAST');
+            }
+        } catch (e) {
+            console.error('Footer logo failed', e);
+        }
+
         doc.save(`Laporan_${reportType}.pdf`);
         setExporting(false);
     };
@@ -492,20 +512,41 @@ export default function ReportsPage() {
                         </div>
                     )}
 
-                    {/* Report Content */}
-                    {reportData ? (
+                    {loading ? (
+                        <div className="space-y-8 bg-white w-full max-w-full overflow-hidden p-6 rounded-xl border">
+                            <div className="space-y-4">
+                                <Skeleton className="h-8 w-64" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-10 w-full" />
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <Skeleton className="h-8 w-64" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <Skeleton className="h-64 w-full rounded-xl" />
+                                    <Skeleton className="h-64 w-full rounded-xl" />
+                                </div>
+                            </div>
+                        </div>
+                    ) : reportData ? (
                         <div className="space-y-8 bg-white print:p-0 print:m-0 w-full max-w-full overflow-hidden">
                             {/* Header for print only */}
                             <div className="hidden print:flex items-center justify-between mb-8 border-b-2 border-primary pb-6">
-                                <div>
-                                    <h1 className="text-3xl font-bold text-primary mb-1">LAPORAN OPERASIONAL</h1>
-                                    <h2 className="text-xl font-medium text-slate-600">Dapur Gempita - Layanan Makanan</h2>
-                                    <div className="mt-4 flex gap-6 text-sm text-slate-500">
-                                        <p><span className="font-semibold text-slate-700">Periode:</span> {filterDate.startDate} s/d {filterDate.endDate}</p>
-                                        <p><span className="font-semibold text-slate-700">Dicetak:</span> {format(new Date(), 'dd MMM yyyy, HH:mm')}</p>
+                                <div className="flex items-center gap-6">
+                                    <div className="relative h-12 w-32">
+                                        <Image src="/Logo_Yayasan_GEMPITA_black.png" alt="Gempita Logo" width={128} height={48} className="object-contain" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-primary mb-1">LAPORAN OPERASIONAL</h1>
+                                        <h2 className="text-xl font-medium text-slate-600">Dapur Gempita - Layanan Makanan</h2>
+                                        <div className="mt-4 flex gap-6 text-sm text-slate-500">
+                                            <p><span className="font-semibold text-slate-700">Periode:</span> {filterDate.startDate} s/d {filterDate.endDate}</p>
+                                            <p><span className="font-semibold text-slate-700">Dicetak:</span> {format(new Date(), 'dd MMM yyyy, HH:mm')}</p>
+                                        </div>
                                     </div>
                                 </div>
-                                <img src="/Logo.png" alt="Gempita Logo" className="h-16 w-auto" />
                             </div>
 
                             {/* 1. Inventory Report Section */}
@@ -620,10 +661,10 @@ export default function ReportsPage() {
                                                                             <TableCell>
                                                                                 {item.photoUrl ? (
                                                                                     <div
-                                                                                        className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 transition-all print:h-16 print:w-16"
+                                                                                        className="relative h-10 w-10 rounded-md border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 transition-all print:h-16 print:w-16"
                                                                                         onClick={() => setLightboxImage(item.photoUrl)}
                                                                                     >
-                                                                                        <img src={item.photoUrl} alt="Foto Bahan" className="h-full w-full object-cover" />
+                                                                                        <Image src={item.photoUrl} alt="Foto Bahan" fill className="object-cover" />
                                                                                     </div>
                                                                                 ) : (
                                                                                     <div className="h-10 w-10 flex items-center justify-center bg-slate-50 rounded-md border border-slate-100 print:hidden">
@@ -732,10 +773,10 @@ export default function ReportsPage() {
                                                                         <TableCell>
                                                                             {e.photoUrl ? (
                                                                                 <div
-                                                                                    className="h-10 w-10 rounded-md border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 transition-all print:h-16 print:w-16"
+                                                                                    className="relative h-10 w-10 rounded-md border border-slate-200 overflow-hidden cursor-pointer hover:opacity-80 transition-all print:h-16 print:w-16"
                                                                                     onClick={() => setLightboxImage(e.photoUrl)}
                                                                                 >
-                                                                                    <img src={e.photoUrl} alt="Foto Masakan" className="h-full w-full object-cover" />
+                                                                                    <Image src={e.photoUrl} alt="Foto Masakan" fill className="object-cover" />
                                                                                 </div>
                                                                             ) : (
                                                                                 <div className="h-10 w-10 flex items-center justify-center bg-slate-50 rounded-md border border-slate-100 print:hidden">
@@ -820,6 +861,20 @@ export default function ReportsPage() {
                                 </section>
                             )}
 
+                            {/* Footer for print only */}
+                            <div className="hidden print:flex items-center justify-between mt-12 pt-8 border-t-2 border-slate-200">
+                                <div className="flex-1"></div>
+                                <div className="text-center">
+                                    <p className="text-sm font-bold text-slate-800">DAPUR GEMPITA</p>
+                                    <p className="text-xs text-slate-500">Sistem Pelaporan Terpadu</p>
+                                </div>
+                                <div className="flex-1 flex justify-end">
+                                    <div className="relative h-10 w-40">
+                                        <Image src="/Logo SPPG Bengkulu.png" alt="SPPG Logo" width={160} height={40} className="object-contain" />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Action Buttons - Hidden in print */}
                             <div className="print:hidden md:sticky bottom-6 py-3 px-4 md:py-4 md:px-6 border bg-white/95 md:bg-white/80 backdrop-blur-md rounded-xl md:rounded-2xl shadow-lg md:shadow-xl flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4 z-10 border-primary/10 mt-8 md:mt-0 w-full overflow-hidden">
                                 <div className="text-xs md:text-sm font-medium text-slate-600 text-center md:text-left">
@@ -863,7 +918,15 @@ export default function ReportsPage() {
                                 <DialogTitle>Pratinjau Foto</DialogTitle>
                                 <DialogDescription>Tampilan detail foto bukti laporan</DialogDescription>
                             </DialogHeader>
-                            <img src={lightboxImage} alt="Bukti" className="w-full h-auto object-contain rounded-lg" />
+                            <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/50">
+                                <Image
+                                    src={lightboxImage}
+                                    alt="Bukti"
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            </div>
                         </DialogContent>
                     </Dialog>
                 )}

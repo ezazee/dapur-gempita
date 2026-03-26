@@ -41,18 +41,15 @@ export function MobileSidebar() {
                     {/* Header */}
                     <div className="flex h-16 items-center px-6 border-b border-sidebar-border">
                         <div className="flex items-center gap-2">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-transparent overflow-hidden">
+                            <div className="flex h-12 w-32 items-center justify-start rounded-lg bg-transparent overflow-hidden">
                                 <Image
-                                    src="/Logo.png"
+                                    src="/Logo_Yayasan_GEMPITA.png"
                                     alt="Logo Gempita"
-                                    width={40}
+                                    width={120}
                                     height={40}
                                     className="object-contain"
                                 />
                             </div>
-                            <span className="font-bold text-sidebar-foreground">
-                                Dapur <span className="text-sidebar-primary">Gempita</span>
-                            </span>
                         </div>
                     </div>
 

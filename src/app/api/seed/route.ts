@@ -4,7 +4,17 @@ import '@/models'; // Force load all models and associations so sync creates all
 import { User, Role, Ingredient, Recipe, RecipeIngredient, Menu, MenuIngredient } from '@/models';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function GET() {
+export async function GET(request: Request) {
+    // SECURITY: Only allow in development mode or with a secret token
+    const { searchParams } = new URL(request.url);
+    const secretToken = searchParams.get('token');
+    const isDev = process.env.NODE_ENV === 'development';
+    const isValidToken = secretToken === process.env.API_SECRET_TOKEN;
+
+    if (!isDev && !isValidToken) {
+        return NextResponse.json({ error: 'Unauthorized. This action is restricted to development or requires a valid secret token.' }, { status: 401 });
+    }
+
     try {
         await sequelize.authenticate();
         // WARNING: This WIPES all data!
@@ -33,7 +43,7 @@ export async function GET() {
             { id: chefId, roleId: 5, email: "chef@gempita.id", password: "chef1234", name: "Chef Dapur" },
             { roleId: 6, email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
         ];
-        await User.bulkCreate(demoUsers as any);
+        await User.bulkCreate(demoUsers as any, { individualHooks: true });
         // --- 3. Seed Ingredients ---
         const berasId = uuidv4();
         const telurId = uuidv4();

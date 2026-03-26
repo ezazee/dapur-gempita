@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Eye, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle, ShoppingCart, Info, Check, Calendar, Package, FileText, Edit, History, ClipboardList } from 'lucide-react';
@@ -367,9 +368,9 @@ export function PurchaseDetailDialog({ open, onOpenChange, purchase, onRefresh, 
                                                                     {item.photoUrl ? (
                                                                         <button
                                                                             onClick={() => setLightboxImage({ url: item.photoUrl!, name: item.ingredientName })}
-                                                                            className="h-10 w-10 rounded-lg overflow-hidden border border-rose-100 hover:border-rose-300 transition-all mx-auto block bg-muted shadow-sm"
+                                                                            className="relative h-10 w-10 rounded-lg overflow-hidden border border-rose-100 hover:border-rose-300 transition-all mx-auto block bg-muted shadow-sm"
                                                                         >
-                                                                            <img src={item.photoUrl} alt={item.ingredientName} className="h-full w-full object-cover" />
+                                                                            <Image src={item.photoUrl} alt={item.ingredientName} fill className="object-cover" />
                                                                         </button>
                                                                     ) : (
                                                                         <span className="text-muted-foreground/30 text-[10px]">—</span>
@@ -464,9 +465,9 @@ export function PurchaseDetailDialog({ open, onOpenChange, purchase, onRefresh, 
                                                                             {item.photoUrl ? (
                                                                                 <button
                                                                                     onClick={() => setLightboxImage({ url: item.photoUrl, name: item.ingredientName })}
-                                                                                    className="h-8 w-12 rounded overflow-hidden border hover:opacity-80 transition-opacity mx-auto block bg-muted"
+                                                                                    className="relative h-8 w-12 rounded overflow-hidden border hover:opacity-80 transition-opacity mx-auto block bg-muted"
                                                                                 >
-                                                                                    <img src={item.photoUrl} alt={item.ingredientName} className="h-full w-full object-cover" />
+                                                                                    <Image src={item.photoUrl} alt={item.ingredientName} fill className="object-cover" />
                                                                                 </button>
                                                                             ) : (
                                                                                 <span className="text-muted-foreground text-[10px]">-</span>
@@ -611,13 +612,17 @@ export function PurchaseDetailDialog({ open, onOpenChange, purchase, onRefresh, 
                         <DialogTitle>Foto: {lightboxImage?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="flex items-center justify-center p-4 pt-0">
-                        {lightboxImage && (
-                            <img
-                                src={lightboxImage.url}
-                                alt={lightboxImage.name}
-                                className="max-w-full max-h-[80vh] object-contain rounded"
-                            />
-                        )}
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/50">
+                            {lightboxImage && (
+                                <Image
+                                    src={lightboxImage.url}
+                                    alt={lightboxImage.name}
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            )}
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

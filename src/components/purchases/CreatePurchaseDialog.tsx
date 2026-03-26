@@ -183,11 +183,6 @@ export function CreatePurchaseDialog({ open, onOpenChange, onSuccess, initialIte
             return;
         }
 
-        const missingPhoto = selectedItems.find(item => !item.photoUrl);
-        if (missingPhoto) {
-            toast.error(`Wajib melampirkan foto bukti untuk barang: ${missingPhoto.name}`);
-            return;
-        }
 
         // Check for deficits if not already confirmed
         if (!showDeficitConfirm) {

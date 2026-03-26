@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,6 +25,7 @@ import { id } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DateFilter } from '@/components/shared/DateFilter';
+import { TableSkeleton, TableRowsSkeleton } from '@/components/shared/TableSkeleton';
 
 
 
@@ -48,8 +50,8 @@ function LogTableRow({ prod, onViewDetail }: { prod: any, onViewDetail: (p: any)
             </TableCell>
             <TableCell>
                 {prod.photoUrl ? (
-                    <div className="h-12 w-16 bg-muted rounded overflow-hidden border shadow-sm cursor-pointer hover:scale-105 transition-transform" onClick={() => onViewDetail(prod)}>
-                        <img src={prod.photoUrl} alt="Foto" className="w-full h-full object-cover" />
+                    <div className="relative h-12 w-16 bg-muted rounded overflow-hidden border shadow-sm cursor-pointer hover:scale-105 transition-transform" onClick={() => onViewDetail(prod)}>
+                        <Image src={prod.photoUrl} alt="Foto" fill className="object-cover" />
                     </div>
                 ) : (
                     <span className="text-[10px] text-muted-foreground italic">Tanpa Foto</span>
@@ -183,7 +185,9 @@ export default function ProductionsPage() {
                             {kitchenStatus.menus.filter((m: any) => !m.isCompleted).map((m: any) => (
                                 <div key={m.id} className={cn(
                                     "p-4 rounded-xl border-2 transition-all flex flex-col justify-between gap-4",
-                                    m.isReady ? "bg-white border-green-100 shadow-sm" : "bg-muted/10 border-dashed border-muted"
+                                    m.overallStatus === 'READY' ? "bg-white border-green-100 shadow-sm" : 
+                                    m.overallStatus === 'PURCHASED' ? "bg-amber-50/50 border-amber-100 shadow-sm" :
+                                    "bg-muted/10 border-dashed border-muted"
                                 )}>
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-start">
@@ -193,8 +197,10 @@ export default function ProductionsPage() {
                                             )}>
                                                 {m.menuType === 'KERING' ? '🍪 Snack/Kering' : '🥘 Menu Masak'}
                                             </Badge>
-                                            {m.isReady ? (
+                                            {m.overallStatus === 'READY' ? (
                                                 <Badge className="bg-success text-success-foreground text-[8px] font-black">SIAP</Badge>
+                                            ) : m.overallStatus === 'PURCHASED' ? (
+                                                <Badge className="bg-amber-500 text-white text-[8px] font-black">DI BELI</Badge>
                                             ) : (
                                                 <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">{Math.round(m.progress)}% BAHAN</Badge>
                                             )}
@@ -208,11 +214,14 @@ export default function ProductionsPage() {
                                         size="sm"
                                         className={cn(
                                             "w-full rounded-full font-bold text-xs",
-                                            m.isReady ? "bg-primary hover:bg-primary/90 shadow-md shadow-primary/10" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                            m.overallStatus === 'READY' ? "bg-primary hover:bg-primary/90 shadow-md shadow-primary/10" : 
+                                            m.overallStatus === 'PURCHASED' ? "bg-amber-600 hover:bg-amber-700 shadow-md shadow-amber-100" :
+                                            "bg-muted text-muted-foreground hover:bg-muted/80"
                                         )}
                                         onClick={() => handleOpenCreate(m.id)}
                                     >
-                                        {m.isReady ? 'Catat Produksi' : 'Bahan Belum Lengkap'}
+                                        {m.overallStatus === 'READY' ? 'Catat Produksi' : 
+                                         m.overallStatus === 'PURCHASED' ? 'Catat (Bahan di Jalan)' : 'Bahan Belum Lengkap'}
                                     </Button>
                                 </div>
                             ))}
@@ -223,12 +232,16 @@ export default function ProductionsPage() {
                 <div className="bg-muted/30 p-4 rounded-lg mb-6 border border-dashed text-sm flex flex-wrap gap-4 items-center">
                     <span className="font-bold text-muted-foreground uppercase text-xs">Informasi Kesiapan Bahan:</span>
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-success text-success-foreground border-success/20">🟢 SIAP DIMASAK</Badge>
-                        <span className="text-xs">= Bahan di Monitoring sudah diterima 100% oleh ASLAP.</span>
+                        <Badge variant="outline" className="bg-success text-success-foreground border-success/20">🟢 SIAP</Badge>
+                        <span className="text-xs">= Stok cukup di gudang ATAU sudah diterima ASLAP hari ini.</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-accent/10 text-accent-foreground border-accent/20">🟡 MENUNGGU BAHAN</Badge>
-                        <span className="text-xs">= Masih ada bahan yang belum diterima (PENDING).</span>
+                        <Badge variant="outline" className="bg-amber-500 text-white border-amber-200">🟡 DI BELI</Badge>
+                        <span className="text-xs">= Sudah dibeli Keuangan, tinggal menunggu verifikasi ASLAP.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-muted text-muted-foreground border-muted">⚪ PENDING</Badge>
+                        <span className="text-xs">= Belum diproses pembelian / stok kosong.</span>
                     </div>
                 </div>
 
@@ -253,7 +266,7 @@ export default function ProductionsPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow><TableCell colSpan={6} className="text-center py-8">Memuat...</TableCell></TableRow>
+                                        <TableRowsSkeleton columns={6} rows={5} />
                                     ) : productions.filter(p => p.menuType === 'OMPRENG').length === 0 ? (
                                         <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">Belum ada data produksi masak.</TableCell></TableRow>
                                     ) : (
@@ -286,7 +299,7 @@ export default function ProductionsPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow><TableCell colSpan={6} className="text-center py-8">Memuat...</TableCell></TableRow>
+                                        <TableRowsSkeleton columns={6} rows={5} />
                                     ) : productions.filter(p => p.menuType === 'KERING').length === 0 ? (
                                         <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">Belum ada data produksi kering.</TableCell></TableRow>
                                     ) : (

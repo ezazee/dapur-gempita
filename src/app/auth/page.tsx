@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, Users, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login } from "@/app/actions/auth";
-import Image from "next/image";
 
 // Demo accounts untuk testing
 const DEMO_ACCOUNTS = [
@@ -98,13 +98,13 @@ export default function AuthPage() {
             <Card className="w-full max-w-md relative animate-fade-in z-10">
                 <CardHeader className="text-center pb-2">
                     <div className="flex justify-center mb-4">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-transparent">
+                        <div className="relative h-[60px] w-[240px]">
                             <Image
-                                src="/Logo.png"
+                                src="/Logo_Yayasan_GEMPITA_black.png"
                                 alt="Logo Gempita"
-                                width={80}
-                                height={80}
+                                fill
                                 className="object-contain"
+                                priority
                             />
                         </div>
                     </div>

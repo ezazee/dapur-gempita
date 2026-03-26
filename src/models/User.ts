@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { sequelize } from '@/lib/sequelize';
 import Role from './Role';
+import bcrypt from 'bcryptjs';
 
 export interface UserAttributes {
     id: string;
@@ -28,9 +29,13 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
     // Association mixin
     declare public role?: Role;
 
-    // Explicitly declare static methods if inference fails
-    // However, with @types/sequelize installed, this *should* work automatically.
-    // If it fails, it usually means the class definition doesn't match the interface exacty or types are stale.
+    // Hook for hashing password
+    public static async hashPassword(user: User) {
+        if (user.changed('password')) {
+            const salt = await bcrypt.genSalt(10);
+            user.password = await bcrypt.hash(user.password, salt);
+        }
+    }
 }
 
 User.init(
@@ -70,5 +75,8 @@ User.init(
         timestamps: true, // adds createdAt and updatedAt
     }
 );
+
+User.addHook('beforeCreate', User.hashPassword);
+User.addHook('beforeUpdate', User.hashPassword);
 
 export default User;

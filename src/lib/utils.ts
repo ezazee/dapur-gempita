@@ -26,9 +26,9 @@ export function getStandardUnit(unit: string): string {
   if (u === 'sdm' || u === 'sendok makan') return 'ml';
   if (u === 'sdt' || u === 'sendok teh') return 'ml';
   if (u === 'ons') return 'gram';
-  // siung and ruas normalize to gram
-  if (u === 'siung') return 'gram';
-  if (u === 'ruas') return 'gram';
+  // siung and ruas remain as is for display
+  if (u === 'siung') return 'siung';
+  if (u === 'ruas') return 'ruas';
   if (u === 'secukupnya') return 'secukupnya';
   return u;
 }
@@ -133,20 +133,13 @@ export function formatRecipeQty(qty: number, unit: string = '') {
   if (isVolume && baseValue >= 1000) {
     currentQty = baseValue / 1000;
     currentUnit = 'liter';
-  } else if (isVolume && baseValue < 1000 && baseValue >= 1) {
-    currentQty = baseValue;
-    currentUnit = 'ml';
-  } else if (isVolume && baseValue > 0 && baseValue < 1) {
+  } else if (isVolume && baseValue < 1000) {
     currentQty = baseValue;
     currentUnit = 'ml';
   } else if (isWeight && baseValue >= 1000) {
     currentQty = baseValue / 1000;
     currentUnit = 'kg';
-  } else if (isWeight && baseValue < 1000 && baseValue >= 1) {
-    currentQty = baseValue;
-    currentUnit = 'gram';
-  } else if (isWeight && baseValue > 0 && baseValue < 1) {
-    // Very small amounts — keep in gram for clarity
+  } else if (isWeight && baseValue < 1000) {
     currentQty = baseValue;
     currentUnit = 'gram';
   }

@@ -19,6 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { X } from 'lucide-react';
 import { cn, formatRecipeQty, formatMemo } from '@/lib/utils';
@@ -92,7 +93,16 @@ export function ReceiptDetailDialog({ open, onOpenChange, receipt }: ReceiptDeta
                                 <TableBody>
                                     {receipt.items?.map((item: any) => (
                                         <TableRow key={item.id}>
-                                            <TableCell className="font-medium">{item.ingredientName}</TableCell>
+                                            <TableCell className="py-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-medium">{item.ingredientName}</span>
+                                                    {item.note && (
+                                                        <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded italic w-fit">
+                                                            "{item.note}"
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell className="text-center">
                                                 {formatRecipeQty(item.grossWeight, item.unit).stringValue} {formatRecipeQty(item.grossWeight, item.unit).unit}
                                             </TableCell>
@@ -101,12 +111,14 @@ export function ReceiptDetailDialog({ open, onOpenChange, receipt }: ReceiptDeta
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 {item.photoUrl ? (
-                                                    <img
-                                                        src={item.photoUrl}
-                                                        alt={item.ingredientName}
-                                                        className="w-16 h-16 object-cover rounded cursor-pointer mx-auto hover:opacity-80"
-                                                        onClick={() => setLightboxImage({ url: item.photoUrl, name: item.ingredientName })}
-                                                    />
+                                                    <div className="relative w-16 h-16 mx-auto cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setLightboxImage({ url: item.photoUrl, name: item.ingredientName })}>
+                                                        <Image
+                                                            src={item.photoUrl}
+                                                            alt={item.ingredientName}
+                                                            fill
+                                                            className="object-cover rounded"
+                                                        />
+                                                    </div>
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">-</span>
                                                 )}
@@ -133,13 +145,17 @@ export function ReceiptDetailDialog({ open, onOpenChange, receipt }: ReceiptDeta
                         <DialogTitle>Foto: {lightboxImage?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="flex items-center justify-center p-4 pt-0">
-                        {lightboxImage && (
-                            <img
-                                src={lightboxImage.url}
-                                alt={lightboxImage.name}
-                                className="max-w-full max-h-[80vh] object-contain rounded"
-                            />
-                        )}
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/50">
+                            {lightboxImage && (
+                                <Image
+                                    src={lightboxImage.url}
+                                    alt={lightboxImage.name}
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            )}
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>

@@ -103,6 +103,7 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
         netWeight: number | string;
         qtyReceived: number | string;
         photoUrl?: string;
+        note?: string;
         displayUnit: string;
     }[]>([]);
 
@@ -131,6 +132,7 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
                     netWeight: isCount ? 0 : defaultQty,
                     qtyReceived: isCount ? defaultQty : 0,
                     photoUrl: undefined,
+                    note: '',
                     displayUnit,
                 };
             });
@@ -139,7 +141,7 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
         }
     }, [purchase?.id]);
 
-    const updateItem = (ingredientId: string, field: 'grossWeight' | 'netWeight' | 'qtyReceived', value: number | string) => {
+    const updateItem = (ingredientId: string, field: 'grossWeight' | 'netWeight' | 'qtyReceived' | 'note', value: number | string) => {
         setItems(prev => prev.map(item => {
             if (item.ingredientId === ingredientId) {
                 const newItem = { ...item, [field]: value };
@@ -171,24 +173,7 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const missingPhoto = items.find(item => {
-            const mItem = mergedItems.find(m => m.ingredientId === item.ingredientId);
-            if (!mItem) return false;
-            const isOp = mItem.menuType === 'OPERATIONAL';
-            const isCount = isOp || isCountUnit(mItem.unit);
-            if (isCount) {
-                const q = typeof item.qtyReceived === 'string' ? parseFloat(item.qtyReceived) : (item.qtyReceived ?? 0);
-                return q > 0 && !item.photoUrl;
-            }
-            const g = typeof item.grossWeight === 'string' ? parseFloat(item.grossWeight) : item.grossWeight;
-            return g > 0 && !item.photoUrl;
-        });
 
-        if (missingPhoto) {
-            const mItem = mergedItems.find(m => m.ingredientId === missingPhoto.ingredientId);
-            toast.error(`Wajib melampirkan foto untuk barang yang diterima: ${mItem?.ingredientName}`);
-            return;
-        }
 
         // Check if any non-count items have 0 netWeight but non-zero grossWeight
         const hasSuspiciousItems = items.some(item => {
@@ -229,6 +214,7 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
                         grossWeight: normalized,
                         netWeight: normalized,
                         photoUrl: item.photoUrl,
+                        note: item.note,
                     };
                 }
 
@@ -239,6 +225,7 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
                     grossWeight: isNaN(gValue as number) ? 0 : denormalizeQty(gValue as number, item.displayUnit, mItem.unit),
                     netWeight: isNaN(nValue as number) ? 0 : denormalizeQty(nValue as number, item.displayUnit, mItem.unit),
                     photoUrl: item.photoUrl,
+                    note: item.note,
                 };
             }),
         });
@@ -363,6 +350,15 @@ export function ValidateReceiptDialog({ open, onOpenChange, purchase, onSuccess 
                                                                 })}
                                                             </div>
                                                         )}
+                                                        <div className="mt-2 text-muted-foreground w-full">
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="Catatan (Opsional)"
+                                                                className="h-7 text-xs border-primary/20 bg-muted/20"
+                                                                value={current?.note || ''}
+                                                                onChange={(e) => updateItem(mItem.ingredientId, 'note', e.target.value)}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </TableCell>
 

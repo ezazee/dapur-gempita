@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { RouteGuard } from '@/components/RouteGuard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
+import { CardSkeleton } from '@/components/shared/CardSkeleton';
 
 export default function EvaluationsPage() {
     const { role } = useAuth();
@@ -129,11 +130,7 @@ export default function EvaluationsPage() {
             >
                 <div className="space-y-6">
                     {loading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[1, 2, 3].map((i) => (
-                                <Card key={i} className="animate-pulse h-[250px] bg-muted/20" />
-                            ))}
-                        </div>
+                        <CardSkeleton count={6} />
                     ) : menus.length === 0 ? (
                         <div className="text-center py-20 border-2 border-dashed rounded-xl bg-muted/10">
                             <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

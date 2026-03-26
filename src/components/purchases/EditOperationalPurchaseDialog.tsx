@@ -192,11 +192,6 @@ export function EditOperationalPurchaseDialog({ open, onOpenChange, purchase, on
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const missingPhoto = selectedItems.find(item => !item.photoUrl);
-        if (missingPhoto) {
-            toast.error(`Wajib melampirkan foto bukti untuk barang: ${missingPhoto.name}`);
-            return;
-        }
 
         setLoading(true);
 

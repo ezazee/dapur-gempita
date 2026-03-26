@@ -231,7 +231,7 @@ export async function getUnifiedHistory(filters: {
                 ...item,
                 unit: item.ingredient?.unit,
                 ingredientName: item.ingredient?.name,
-                memo: item.memo?.replace(/^\[REQ:[^\]]+\]\s*/i, ''),
+                note: item.note, // Fixed: use note for ReceiptItem
                 menuType
             };
         });

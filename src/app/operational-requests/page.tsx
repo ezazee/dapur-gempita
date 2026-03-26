@@ -18,6 +18,7 @@ import { RouteGuard } from '@/components/RouteGuard';
 import { DateFilter } from '@/components/shared/DateFilter';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cleanMemo } from '@/lib/mapping';
+import { TableSkeleton, TableRowsSkeleton } from '@/components/shared/TableSkeleton';
 
 export default function OperationalRequestsPage() {
     // Requests state
@@ -109,9 +110,21 @@ export default function OperationalRequestsPage() {
                         </CardHeader>
                         <CardContent>
                             {fetching ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                                    <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                                    <p>Memuat riwayat...</p>
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Tanggal</TableHead>
+                                                <TableHead>Item</TableHead>
+                                                <TableHead>Catatan</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">Aksi</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            <TableRowsSkeleton columns={5} rows={5} />
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             ) : requests.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">

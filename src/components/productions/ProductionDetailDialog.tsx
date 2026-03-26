@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 import { format } from 'date-fns';
 import { ChefHat, Utensils } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -143,10 +144,11 @@ export function ProductionDetailDialog({ open, onOpenChange, production }: Produ
                                     className="relative h-64 w-full cursor-pointer rounded-md overflow-hidden border"
                                     onClick={() => setLightboxImage(production.photoUrl)}
                                 >
-                                    <img
+                                    <Image
                                         src={production.photoUrl}
                                         alt="Foto masakan"
-                                        className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                                        fill
+                                        className="object-cover hover:opacity-90 transition-opacity"
                                     />
                                 </div>
                             </div>
@@ -202,11 +204,15 @@ export function ProductionDetailDialog({ open, onOpenChange, production }: Produ
                             <DialogTitle>Foto Hasil Masakan</DialogTitle>
                         </DialogHeader>
                         <div className="flex items-center justify-center p-4 pt-0">
-                            <img
-                                src={lightboxImage}
-                                alt="Foto masakan"
-                                className="max-w-full max-h-[80vh] object-contain rounded"
-                            />
+                            <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/50">
+                                <Image
+                                    src={lightboxImage}
+                                    alt="Foto masakan"
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            </div>
                         </div>
                     </DialogContent>
                 </Dialog>
