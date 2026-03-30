@@ -31,8 +31,10 @@ const dialectOptions: any = {};
 if (isSslRequired) {
     dialectOptions.ssl = {
         require: true,
-        rejectUnauthorized: false, // This allows self-signed certs (Neon/Dev)
+        rejectUnauthorized: false,
     };
+} else {
+    dialectOptions.ssl = false;
 }
 
 export const sequelize = new Sequelize(dbUrl, {

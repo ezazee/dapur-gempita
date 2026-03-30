@@ -12,7 +12,7 @@ export async function getRecipes() {
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita', 'isSecukupnya'] }
+                    through: { attributes: ['qty_besar', 'qty_kecil', 'qty_bumil', 'qty_balita', 'is_secukupnya'] }
                 }
             ],
             order: [['name', 'ASC']]
@@ -28,16 +28,25 @@ export async function getRecipes() {
             carbs: r.carbs,
             protein: r.protein,
             fat: r.fat,
-            ingredients: r.ingredients.map((i: any) => ({
-                id: i.id,
-                name: i.name,
-                unit: i.unit,
-                qtyBesar: (i as any).RecipeIngredient?.qtyBesar || 0,
-                qtyKecil: (i as any).RecipeIngredient?.qtyKecil || null,
-                qtyBumil: (i as any).RecipeIngredient?.qtyBumil || null,
-                qtyBalita: (i as any).RecipeIngredient?.qtyBalita || null,
-                isSecukupnya: (i as any).RecipeIngredient?.isSecukupnya || false,
-            }))
+            ingredients: r.ingredients.map((i: any) => {
+                // Sequelize attaches junction data under the model name OR under raw dataValues
+                // Try multiple access patterns to be safe in production builds
+                const pivot = i.RecipeIngredient?.dataValues ||
+                    i.recipe_ingredients?.dataValues ||
+                    i.RecipeIngredient ||
+                    i.recipe_ingredient ||
+                    {};
+                return {
+                    id: i.id,
+                    name: i.name,
+                    unit: i.unit,
+                    qtyBesar: pivot.qty_besar ?? pivot.qtyBesar ?? 0,
+                    qtyKecil: pivot.qty_kecil ?? pivot.qtyKecil ?? null,
+                    qtyBumil: pivot.qty_bumil ?? pivot.qtyBumil ?? null,
+                    qtyBalita: pivot.qty_balita ?? pivot.qtyBalita ?? null,
+                    isSecukupnya: pivot.is_secukupnya ?? pivot.isSecukupnya ?? false,
+                };
+            })
         }));
     } catch (error) {
         console.error('Error fetching recipes:', error);
@@ -223,7 +232,7 @@ export async function getRecipeByName(name: string) {
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita'] }
+                    through: { attributes: ['qty_besar', 'qty_kecil', 'qty_bumil', 'qty_balita', 'is_secukupnya'] }
                 }
             ]
         });
@@ -239,16 +248,21 @@ export async function getRecipeByName(name: string) {
             carbs: recipe.carbs,
             protein: recipe.protein,
             fat: recipe.fat,
-            ingredients: (recipe as any).ingredients.map((i: any) => ({
-                id: i.id,
-                name: i.name,
-                unit: i.unit,
-                qtyBesar: (i as any).RecipeIngredient?.qtyBesar || 0,
-                qtyKecil: (i as any).RecipeIngredient?.qtyKecil || null,
-                qtyBumil: (i as any).RecipeIngredient?.qtyBumil || null,
-                qtyBalita: (i as any).RecipeIngredient?.qtyBalita || null,
-                isSecukupnya: (i as any).RecipeIngredient?.isSecukupnya || false,
-            }))
+            ingredients: (recipe as any).ingredients.map((i: any) => {
+                const pivot = i.RecipeIngredient?.dataValues ||
+                    i.RecipeIngredient ||
+                    {};
+                return {
+                    id: i.id,
+                    name: i.name,
+                    unit: i.unit,
+                    qtyBesar: pivot.qty_besar ?? pivot.qtyBesar ?? 0,
+                    qtyKecil: pivot.qty_kecil ?? pivot.qtyKecil ?? null,
+                    qtyBumil: pivot.qty_bumil ?? pivot.qtyBumil ?? null,
+                    qtyBalita: pivot.qty_balita ?? pivot.qtyBalita ?? null,
+                    isSecukupnya: pivot.is_secukupnya ?? pivot.isSecukupnya ?? false,
+                };
+            })
         };
     } catch (error) {
         console.error('Error fetching recipe by name:', error);

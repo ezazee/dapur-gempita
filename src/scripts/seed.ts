@@ -237,6 +237,7 @@ function parseMenuFile(filePath: string) {
 
 async function main() {
     try {
+        console.log('Seeding database:', (sequelize.options as any).host, (sequelize.options as any).database);
         await sequelize.authenticate();
         await sequelize.sync({ force: true });
         
