@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 // Units allowed in the system (no sdm/sdt)
 export const METRIC_UNITS = ['gram', 'g', 'kg', 'ml', 'liter'] as const;
-export const COUNT_UNITS = ['butir', 'bungkus', 'lembar', 'ikat', 'porsi', 'siung', 'ruas', 'batang', 'buah', 'pcs'] as const;
+export const COUNT_UNITS = ['butir', 'bungkus', 'lembar', 'ikat', 'porsi', 'siung', 'ruas', 'batang', 'buah', 'pcs', 'potong', 'ekor'] as const;
 export const SPECIAL_UNITS = ['secukupnya'] as const;
 export const ALL_ALLOWED_UNITS = [...METRIC_UNITS, ...COUNT_UNITS, ...SPECIAL_UNITS] as const;
 
@@ -58,6 +58,8 @@ export function getConversionFactor(unit: string): number {
   if (u === 'ruas') return 10;    // 1 ruas jahe/kunyit ≈ 10 gram
   if (u === 'batang') return 15;  // kept as-is display, rough gram approx
   if (u === 'lembar') return 1;
+  if (u === 'potong') return 100; // 1 potong ayam = 100g (standar Gempita)
+  if (u === 'ekor') return 1000;  // 1 ekor ayam ≈ 1 kg
 
   return 1;
 }
@@ -149,7 +151,7 @@ export function formatRecipeQty(qty: number, unit: string = '') {
   let decimalPart = Math.round((currentQty - integerPart) * 1000) / 1000;
 
   let fractionStr = '';
-  const noFractionUnits = ['kg', 'liter', 'ons'];
+  const noFractionUnits = ['kg', 'liter', 'ons', 'potong', 'ekor', 'butir', 'buah', 'pcs'];
 
   if (decimalPart > 0 && !noFractionUnits.includes(currentUnit)) {
     if (currentQty < 50) {

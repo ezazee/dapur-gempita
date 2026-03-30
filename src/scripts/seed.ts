@@ -42,8 +42,8 @@ function mapIngredient(rawName: string): { name: string, unit: string } | null {
     
     if (raw === 'energi' || raw === 'protein' || raw === 'lemak' || raw.includes('karbohidrat') || raw === 'kalori') return null;
 
+    if (raw.includes('ayam')) return { name: 'Ayam Potong', unit: 'potong' };
     if (raw.includes('daging') || raw.includes('sapi')) return { name: 'Daging Sapi Has Dalam', unit: 'kg' };
-    if (raw.includes('ayam')) return { name: 'Ayam Potong', unit: 'kg' };
     if (raw.includes('putih') && raw.includes('bawang')) return { name: 'Bawang Putih', unit: 'siung' };
     if (raw.includes('bombai') || raw.includes('bombay')) return { name: 'Bawang Bombai', unit: 'buah' };
     if (raw.includes('merah') && raw.includes('bawang')) return { name: 'Bawang Merah', unit: 'siung' };
@@ -146,13 +146,29 @@ function parseQuantity(line: string, mappedUnit: string) {
         if (isNaN(amt)) amt = 1;
 
         const u = match[2].toLowerCase();
-        
-        if (u === 'sdm') amt = amt * 0.015;
-        else if (u === 'sdt') amt = amt * 0.005;
-        else if (u === 'gram' || u === 'gr' || u === 'g' || u === 'ml') amt = amt * 0.001;
-        else if (mappedUnit === 'kg' && (u === 'buah' || u === 'biji')) amt = amt * 0.01;
-        else if (mappedUnit === 'kg' && u === 'siung') amt = amt * 0.01;
-        else if (mappedUnit === 'kg' && u === 'lembar') amt = amt * 0.002;
+
+        if (mappedUnit === 'potong') {
+            // 1 potong ayam = 100g (sesuai standar 85-113g) dibulatkan ke bilangan utuh
+            if (u === 'gram' || u === 'gr' || u === 'g') amt = Math.round(amt / 100);
+            else if (u === 'kg') amt = Math.round(amt * 10); // 1 kg = 10 potong @ 100g
+            else if (u === 'ml') amt = Math.round(amt / 100);
+            else if (u === 'buah' || u === 'ekor') amt = Math.round(amt * 10); // 1 ekor ≈ 1 kg ≈ 10 potong
+            if (amt < 1 && amt > 0) amt = 1; // Minimal 1 potong
+        } else if (u === 'sdm') {
+            amt = amt * 0.015;
+        } else if (u === 'sdt') {
+            amt = amt * 0.005;
+        } else if (u === 'gram' || u === 'gr' || u === 'g' || u === 'ml') {
+            amt = amt * 0.001;
+        } else if (mappedUnit === 'kg' && (u === 'buah' || u === 'biji')) {
+            amt = amt * 0.01;
+        } else if (mappedUnit === 'kg' && u === 'siung') {
+            amt = amt * 0.01;
+        } else if (mappedUnit === 'kg' && u === 'lembar') {
+            amt = amt * 0.002;
+        } else if (mappedUnit === 'kg' && u === 'ekor') {
+            amt = amt * 1; // 1 ekor ≈ 1 kg
+        }
     }
 
     if (mappedUnit === 'kg' && amt > 5) {
@@ -169,39 +185,38 @@ function parseMenuFile(filePath: string) {
     
     let name = lines[0].match(/^\d+\s*[-—]\s*(.+)$/)?.[1]?.trim() || lines[0];
     let calories = 0, carbs = 0, protein = 0, fat = 0;
-    let ingredients = [];
+    let ingredients: any[] = [];
     let basePortion = 1;
+    let inMenuSection = false;      // skip MENU: section
     let inIngredientSection = false;
     let inCookingSection = false;
-    let cookingSteps = [];
+    let cookingSteps: string[] = [];
 
-    // Extract Nutrients & Steps
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const low = line.toLowerCase();
 
-        // Detect Nutrients
-        const valMatch = low.match(/([\d,]+)/);
-        if (valMatch) {
-            const val = parseFloat(valMatch[1].replace(',', '.'));
-            if (low.includes('energi') || low.includes('kalori')) calories = val;
-            else if (low.includes('protein')) protein = val;
-            else if (low.includes('lemak')) fat = val;
-            else if (low.includes('karbohidrat') || low.includes('karbo')) carbs = val;
-        }
+        // --- Section Header Detection ---
 
-        // Section Detection
-        if (low.startsWith('cara memasak') || low.startsWith('langkah') || low.includes('instruksi')) {
-            inCookingSection = true;
-            inIngredientSection = false;
-            continue;
-        }
-        if (low.startsWith('kandungan gizi') || low.startsWith('kandungan')) {
+        // Skip the MENU listing section entirely
+        if (/^menu\s*:/i.test(line)) {
+            inMenuSection = true;
             inIngredientSection = false;
             inCookingSection = false;
             continue;
         }
-        if (low.includes('bahan-bahan') || low.includes('bahan (') || low.includes('bumbu') || low.includes('saus') || low.includes('pelengkap')) {
+
+        // Nutrition section
+        if (low.startsWith('kandungan gizi') || low.startsWith('kandungan')) {
+            inMenuSection = false;
+            inIngredientSection = false;
+            inCookingSection = false;
+            continue;
+        }
+
+        // Ingredient section — triggered by BAHAN-BAHAN, BAHAN (, bumbu, saus, pelengkap, etc.
+        if (/bahan[- ]bahan/i.test(line) || /^bahan\s*\(/i.test(line)) {
+            inMenuSection = false;
             inIngredientSection = true;
             inCookingSection = false;
             if (low.includes('porsi')) {
@@ -210,22 +225,62 @@ function parseMenuFile(filePath: string) {
             }
             continue;
         }
+        // Sub-sections of ingredients (bumbu, saus, pelengkap)
+        if (inIngredientSection && /^(bumbu|saus|bahan saus|pelengkap|sambal|bahan pelengkap)/i.test(line)) {
+            // Keep inIngredientSection = true, just continue collecting
+            continue;
+        }
 
-        // Action
-        if (inIngredientSection && (line.startsWith('•') || line.startsWith('-'))) {
-            const textIng = line.replace(/^[•-]/, '').trim();
+        // Cooking section
+        if (/^cara memasak/i.test(line) || /^langkah/i.test(line) || /^instruksi/i.test(line)) {
+            inMenuSection = false;
+            inIngredientSection = false;
+            inCookingSection = true;
+            continue;
+        }
+
+        // Separator lines — reset menu section flag once we pass it
+        if (/^={3,}|^-{3,}|^═{3,}/i.test(line)) {
+            if (inMenuSection) inMenuSection = false;
+            continue;
+        }
+
+        // --- Extract Nutrients ---
+        if (!inIngredientSection && !inCookingSection) {
+            const valMatch = low.match(/([\d,]+(?:[.,]\d+)?)/);
+            if (valMatch) {
+                const val = parseFloat(valMatch[1].replace(',', '.'));
+                if (low.includes('energi') || low.includes('kalori')) calories = val;
+                else if (low.includes('protein')) protein = val;
+                else if (low.includes('lemak')) fat = val;
+                else if (low.includes('karbohidrat') || low.includes('karbo')) carbs = val;
+            }
+        }
+
+        // --- Action: Collect ingredients ---
+        if (inIngredientSection && !inMenuSection && (line.startsWith('•') || line.startsWith('-'))) {
+            const textIng = line.replace(/^[•\-]/, '').trim();
             const mappedIng = mapIngredient(textIng);
             if (mappedIng) {
                 const { qtyBase, isSecukupnya } = parseQuantity(textIng, mappedIng.unit);
-                ingredients.push({
-                    name: mappedIng.name,
-                    unit: mappedIng.unit,
-                    qtyBesar: isSecukupnya ? 0 : qtyBase,
-                    isSecukupnya
-                });
+                // Deduplicate by name
+                if (!ingredients.find(x => x.name === mappedIng.name)) {
+                    ingredients.push({
+                        name: mappedIng.name,
+                        unit: mappedIng.unit,
+                        qtyBesar: isSecukupnya ? 0 : qtyBase,
+                        isSecukupnya
+                    });
+                }
             }
-        } else if (inCookingSection) {
-            if (!line.includes('====')) cookingSteps.push(line);
+        }
+
+        // --- Action: Collect cooking steps ---
+        if (inCookingSection) {
+            // Include sub-section headers and numbered steps
+            if (!line.match(/^={3,}|^-{3,}|^═{3,}/)) {
+                cookingSteps.push(line);
+            }
         }
     }
 
@@ -275,7 +330,7 @@ async function main() {
         // Baseline Stocks
         const baseline = [
             { name: 'Daging Sapi Has Dalam', unit: 'kg' },
-            { name: 'Ayam Potong', unit: 'kg' },
+            { name: 'Ayam Potong', unit: 'potong' },
             { name: 'Bawang Putih', unit: 'siung' },
             { name: 'Bawang Merah', unit: 'siung' },
             { name: 'Beras Premium', unit: 'kg' },
