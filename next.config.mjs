@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Add any specific config here if needed
+  optimizeFonts: false,
 };
 
 export default nextConfig;

@@ -5,7 +5,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+    subsets: ['latin'],
+    display: 'swap',
+    preload: false,
+});
 
 export const metadata: Metadata = {
     title: 'Dapur Gempita',
