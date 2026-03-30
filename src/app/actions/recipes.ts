@@ -10,9 +10,14 @@ export async function getRecipes() {
         const recipes = await Recipe.findAll({
             include: [
                 {
-                    model: Ingredient,
-                    as: 'ingredients',
-                    through: { attributes: ['qty_besar', 'qty_kecil', 'qty_bumil', 'qty_balita', 'is_secukupnya'] }
+                    model: RecipeIngredient,
+                    as: 'items',
+                    include: [
+                        {
+                            model: Ingredient,
+                            as: 'ingredient'
+                        }
+                    ]
                 }
             ],
             order: [['name', 'ASC']]
@@ -28,25 +33,16 @@ export async function getRecipes() {
             carbs: r.carbs,
             protein: r.protein,
             fat: r.fat,
-            ingredients: r.ingredients.map((i: any) => {
-                // Sequelize attaches junction data under the model name OR under raw dataValues
-                // Try multiple access patterns to be safe in production builds
-                const pivot = i.RecipeIngredient?.dataValues ||
-                    i.recipe_ingredients?.dataValues ||
-                    i.RecipeIngredient ||
-                    i.recipe_ingredient ||
-                    {};
-                return {
-                    id: i.id,
-                    name: i.name,
-                    unit: i.unit,
-                    qtyBesar: pivot.qty_besar ?? pivot.qtyBesar ?? 0,
-                    qtyKecil: pivot.qty_kecil ?? pivot.qtyKecil ?? null,
-                    qtyBumil: pivot.qty_bumil ?? pivot.qtyBumil ?? null,
-                    qtyBalita: pivot.qty_balita ?? pivot.qtyBalita ?? null,
-                    isSecukupnya: pivot.is_secukupnya ?? pivot.isSecukupnya ?? false,
-                };
-            })
+            ingredients: (r.items || []).map((item: any) => ({
+                id: item.ingredient?.id,
+                name: item.ingredient?.name,
+                unit: item.ingredient?.unit,
+                qtyBesar: item.qtyBesar ?? 0,
+                qtyKecil: item.qtyKecil ?? null,
+                qtyBumil: item.qtyBumil ?? null,
+                qtyBalita: item.qtyBalita ?? null,
+                isSecukupnya: item.isSecukupnya ?? false,
+            })).filter((i: any) => i.name)
         }));
     } catch (error) {
         console.error('Error fetching recipes:', error);
@@ -230,9 +226,9 @@ export async function getRecipeByName(name: string) {
             ),
             include: [
                 {
-                    model: Ingredient,
-                    as: 'ingredients',
-                    through: { attributes: ['qty_besar', 'qty_kecil', 'qty_bumil', 'qty_balita', 'is_secukupnya'] }
+                    model: RecipeIngredient,
+                    as: 'items',
+                    include: [{ model: Ingredient, as: 'ingredient' }]
                 }
             ]
         });
@@ -248,21 +244,16 @@ export async function getRecipeByName(name: string) {
             carbs: recipe.carbs,
             protein: recipe.protein,
             fat: recipe.fat,
-            ingredients: (recipe as any).ingredients.map((i: any) => {
-                const pivot = i.RecipeIngredient?.dataValues ||
-                    i.RecipeIngredient ||
-                    {};
-                return {
-                    id: i.id,
-                    name: i.name,
-                    unit: i.unit,
-                    qtyBesar: pivot.qty_besar ?? pivot.qtyBesar ?? 0,
-                    qtyKecil: pivot.qty_kecil ?? pivot.qtyKecil ?? null,
-                    qtyBumil: pivot.qty_bumil ?? pivot.qtyBumil ?? null,
-                    qtyBalita: pivot.qty_balita ?? pivot.qtyBalita ?? null,
-                    isSecukupnya: pivot.is_secukupnya ?? pivot.isSecukupnya ?? false,
-                };
-            })
+            ingredients: ((recipe as any).items || []).map((item: any) => ({
+                id: item.ingredient?.id,
+                name: item.ingredient?.name,
+                unit: item.ingredient?.unit,
+                qtyBesar: item.qtyBesar ?? 0,
+                qtyKecil: item.qtyKecil ?? null,
+                qtyBumil: item.qtyBumil ?? null,
+                qtyBalita: item.qtyBalita ?? null,
+                isSecukupnya: item.isSecukupnya ?? false,
+            })).filter((i: any) => i.name)
         };
     } catch (error) {
         console.error('Error fetching recipe by name:', error);
