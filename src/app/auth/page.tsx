@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, Users, Check } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -11,16 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { login } from "@/app/actions/auth";
 
-// Demo accounts untuk testing
-const DEMO_ACCOUNTS = [
-    { role: "SUPER_ADMIN", email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
-    { role: "AHLI_GIZI", email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
-    { role: "KEUANGAN", email: "keuangan@gempita.id", password: "pembeli1", name: "Keuangan" },
-    { role: "ASLAP", email: "aslap@gempita.id", password: "aslap123", name: "Asisten Lapangan" },
-    { role: "CHEF", email: "chef@gempita.id", password: "chef1234", name: "Chef Dapur" },
-    { role: "KEPALA_DAPUR", email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
-];
-
 export default function AuthPage() {
     const router = useRouter();
 
@@ -28,7 +18,6 @@ export default function AuthPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loginData, setLoginData] = useState({ email: "", password: "" });
-    const [seedStatus, setSeedStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,26 +53,6 @@ export default function AuthPage() {
             setError("Terjadi kesalahan. Silakan coba lagi.");
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const fillCredentials = (email: string, password: string) => {
-        setLoginData({ email, password });
-        setError(null);
-    };
-
-    const handleSeed = async () => {
-        setSeedStatus('loading');
-        try {
-            const res = await fetch('/api/seed');
-            if (res.ok) {
-                setSeedStatus('success');
-                setTimeout(() => setSeedStatus('idle'), 3000);
-            } else {
-                setSeedStatus('error');
-            }
-        } catch (e) {
-            setSeedStatus('error');
         }
     };
 
@@ -175,44 +144,6 @@ export default function AuthPage() {
                             )}
                         </Button>
                     </form>
-
-                    {/* Seed Button for convenience */}
-                    {/* <div className="mt-4 flex justify-center">
-                        <Button variant="outline" size="sm" onClick={handleSeed} disabled={seedStatus === 'loading'}>
-                            {seedStatus === 'loading' && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
-                            {seedStatus === 'success' && <Check className="mr-2 h-3 w-3 text-green-500" />}
-                            {seedStatus === 'error' && <AlertCircle className="mr-2 h-3 w-3 text-red-500" />}
-                            Seed Database Users (Reset)
-                        </Button>
-                    </div> */}
-
-                    {/* Demo Accounts Section */}
-                    <div className="mt-6 pt-6 border-t border-border">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium text-muted-foreground">Akun Demo</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {DEMO_ACCOUNTS.map((account) => (
-                                <button
-                                    key={account.role}
-                                    type="button"
-                                    onClick={() => fillCredentials(account.email, account.password)}
-                                    className="text-left p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all group"
-                                >
-                                    <div className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                                        {account.role.replace("_", " ")}
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground truncate">
-                                        {account.email}
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                        <p className="mt-3 text-[10px] text-muted-foreground text-center">
-                            Klik untuk mengisi kredensial secara otomatis
-                        </p>
-                    </div>
                 </CardContent>
             </Card>
         </div>
