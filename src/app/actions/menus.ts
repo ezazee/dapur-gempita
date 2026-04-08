@@ -39,7 +39,7 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['id', 'qtyNeeded', 'gramasi', 'qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita', 'evaluationStatus', 'evaluationNote'] }
+                    through: { attributes: ['id', 'qtyNeeded', 'gramasi', 'qtyBesar', 'qtyKecil', 'qtyBumil', 'qtyBalita', 'isSecukupnya', 'evaluationStatus', 'evaluationNote'] }
                 },
                 {
                     model: Production,
@@ -374,13 +374,13 @@ export async function getMenuIngredientsForDate(date: Date) {
                 {
                     model: Ingredient,
                     as: 'ingredients',
-                    through: { attributes: ['qtyNeeded'] }
+                    through: { attributes: ['qtyNeeded', 'isSecukupnya'] }
                 }
             ]
         });
 
         // Aggregate ingredients separated by menu type
-        const aggregated: Record<string, { id: string; name: string; unit: string; qty: number; menuType?: string; currentStock?: number }> = {};
+        const aggregated: Record<string, { id: string; name: string; unit: string; qty: number; menuType?: string; currentStock?: number; isSecukupnya?: boolean }> = {};
 
         menus.forEach((menu: any) => {
             menu.ingredients.forEach((ing: any) => {
@@ -394,6 +394,7 @@ export async function getMenuIngredientsForDate(date: Date) {
                         name: ing.name,
                         unit: ing.unit,
                         qty: ing.MenuIngredient?.qtyNeeded || 0,
+                        isSecukupnya: ing.MenuIngredient?.isSecukupnya || false,
                         currentStock: ing.currentStock || 0,
                         menuType: menu.menuType
                     };
