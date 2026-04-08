@@ -4,6 +4,7 @@ import { Recipe, Ingredient, RecipeIngredient, sequelize } from '@/models';
 import { getSession } from './auth';
 import { revalidatePath } from 'next/cache';
 import { Op } from 'sequelize';
+import { Transaction } from 'sequelize';
 
 export async function getRecipes() {
     try {
@@ -75,7 +76,10 @@ export async function createRecipe(data: {
         return { error: 'Permission denied' };
     }
 
+    let t: Transaction | undefined;
     try {
+        t = await sequelize.transaction();
+
         const recipe = await Recipe.create({
             name: data.name,
             description: data.description,
@@ -85,44 +89,49 @@ export async function createRecipe(data: {
             protein: data.protein || undefined,
             fat: data.fat || undefined,
             createdBy: session.id
-        });
+        }, { transaction: t });
 
         if (data.ingredients.length > 0) {
-            for (const item of data.ingredients) {
-                // Find or create ingredient
+            const ingredientPromises = data.ingredients.map(async (item) => {
                 let ingredient = await Ingredient.findOne({
                     where: sequelize.where(
                         sequelize.fn('lower', sequelize.col('name')),
-                        sequelize.fn('lower', item.name)
-                    )
+                        sequelize.fn('lower', item.name.trim())
+                    ),
+                    transaction: t
                 });
 
                 if (!ingredient) {
                     ingredient = await Ingredient.create({
-                        name: item.name,
+                        name: item.name.trim(),
                         unit: item.unit,
                         currentStock: 0,
                         minimumStock: 10
-                    });
+                    }, { transaction: t });
                 }
 
-                await RecipeIngredient.create({
+                return {
                     recipeId: recipe.id,
                     ingredientId: ingredient.id,
-                    qtyBesar: item.isSecukupnya ? 0 : item.qtyBesar,
+                    qtyBesar: item.isSecukupnya ? 0 : (Number(item.qtyBesar) || 0),
                     qtyKecil: item.isSecukupnya ? 0 : (Number(item.qtyKecil) || 0),
                     qtyBumil: item.isSecukupnya ? 0 : (Number(item.qtyBumil) || 0),
                     qtyBalita: item.isSecukupnya ? 0 : (Number(item.qtyBalita) || 0),
                     isSecukupnya: item.isSecukupnya || false
-                });
-            }
+                };
+            });
+
+            const recipeIngredientsData = await Promise.all(ingredientPromises);
+            await RecipeIngredient.bulkCreate(recipeIngredientsData, { transaction: t });
         }
 
+        await t.commit();
         revalidatePath('/recipes');
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
+        if (t) await t.rollback();
         console.error('Error creating recipe:', error);
-        return { error: 'Failed to create recipe' };
+        return { error: 'Failed to create recipe: ' + error.message };
     }
 }
 
@@ -134,12 +143,13 @@ export async function deleteRecipe(id: string) {
 
     try {
         await Recipe.destroy({ where: { id } });
-        revalidatePath('/notes');
+        revalidatePath('/recipes');
         return { success: true };
     } catch (error) {
         return { error: 'Failed' };
     }
 }
+
 export async function updateRecipe(id: string, data: {
     name: string;
     description: string;
@@ -163,9 +173,15 @@ export async function updateRecipe(id: string, data: {
         return { error: 'Permission denied' };
     }
 
+    let t: Transaction | undefined;
     try {
-        const recipe = await Recipe.findByPk(id);
-        if (!recipe) return { error: 'Recipe not found' };
+        t = await sequelize.transaction();
+        
+        const recipe = await Recipe.findByPk(id, { transaction: t });
+        if (!recipe) {
+            await t.rollback();
+            return { error: 'Recipe not found' };
+        }
 
         await recipe.update({
             name: data.name,
@@ -175,48 +191,55 @@ export async function updateRecipe(id: string, data: {
             carbs: data.carbs || undefined,
             protein: data.protein || undefined,
             fat: data.fat || undefined,
-        });
+        }, { transaction: t });
 
         // Sync ingredients: Delete old, create new
-        await RecipeIngredient.destroy({ where: { recipeId: id } });
+        await RecipeIngredient.destroy({ where: { recipeId: id }, transaction: t });
 
         if (data.ingredients.length > 0) {
-            for (const item of data.ingredients) {
+            const ingredientPromises = data.ingredients.map(async (item) => {
                 let ingredient = await Ingredient.findOne({
                     where: sequelize.where(
                         sequelize.fn('lower', sequelize.col('name')),
-                        sequelize.fn('lower', item.name)
-                    )
+                        sequelize.fn('lower', item.name.trim())
+                    ),
+                    transaction: t
                 });
 
                 if (!ingredient) {
                     ingredient = await Ingredient.create({
-                        name: item.name,
+                        name: item.name.trim(),
                         unit: item.unit,
                         currentStock: 0,
                         minimumStock: 10
-                    });
+                    }, { transaction: t });
                 }
 
-                await RecipeIngredient.create({
+                return {
                     recipeId: id,
                     ingredientId: ingredient.id,
-                    qtyBesar: item.isSecukupnya ? 0 : item.qtyBesar,
+                    qtyBesar: item.isSecukupnya ? 0 : (Number(item.qtyBesar) || 0),
                     qtyKecil: item.isSecukupnya ? 0 : (Number(item.qtyKecil) || 0),
                     qtyBumil: item.isSecukupnya ? 0 : (Number(item.qtyBumil) || 0),
                     qtyBalita: item.isSecukupnya ? 0 : (Number(item.qtyBalita) || 0),
                     isSecukupnya: item.isSecukupnya || false
-                });
-            }
+                };
+            });
+
+            const recipeIngredientsData = await Promise.all(ingredientPromises);
+            await RecipeIngredient.bulkCreate(recipeIngredientsData, { transaction: t });
         }
 
+        await t.commit();
         revalidatePath('/recipes');
         return { success: true };
     } catch (error: any) {
+        if (t) await t.rollback();
         console.error('Error updating recipe:', error);
         return { error: error.message || 'Failed to update recipe' };
     }
 }
+
 export async function getRecipeByName(name: string) {
     try {
         const recipe = await Recipe.findOne({

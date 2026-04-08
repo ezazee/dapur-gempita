@@ -42,26 +42,24 @@ export async function createOperationalRequest(data: {
             createdBy: session.id
         }, { transaction: t });
 
-        // Add items
-        for (const item of data.items) {
+        // Add items in parallel
+        const itemPromises = data.items.map(async (item) => {
             let actualIngredientId = item.ingredientId;
 
-            // Handle ad-hoc items that might not be in DB yet
             if (!actualIngredientId) {
-                // Find or create OPERATIONAL category ingredient
                 let ingredient = await Ingredient.findOne({
                     where: sequelize.where(
                         sequelize.fn('lower', sequelize.col('name')),
-                        sequelize.fn('lower', item.name)
+                        sequelize.fn('lower', item.name.trim())
                     ),
                     transaction: t
                 });
 
                 if (!ingredient) {
                     ingredient = await Ingredient.create({
-                        name: item.name,
+                        name: item.name.trim(),
                         unit: item.unit,
-                        category: 'OPERASIONAL', // Corrected to Indonesian
+                        category: 'OPERASIONAL',
                         currentStock: 0,
                         minimumStock: 5
                     }, { transaction: t });
@@ -69,17 +67,20 @@ export async function createOperationalRequest(data: {
                 actualIngredientId = ingredient.id;
             }
 
-            await PurchaseItem.create({
+            return {
                 purchaseId: purchase.id,
                 ingredientId: actualIngredientId,
                 estimatedQty: item.qty,
-                targetQty: item.qty // Ahli gizi target not applicable, but keeping same structure
-            }, { transaction: t });
-        }
+                targetQty: item.qty
+            };
+        });
+
+        const purchaseItemsData = await Promise.all(itemPromises);
+        await PurchaseItem.bulkCreate(purchaseItemsData, { transaction: t });
 
         await t.commit();
         revalidatePath('/operational-requests');
-        revalidatePath('/purchases'); // Also update Keuangan's view
+        revalidatePath('/purchases');
         return { success: true, data: purchase.id };
 
     } catch (error: any) {
@@ -138,22 +139,22 @@ export async function updateOperationalRequest(id: string, data: {
             transaction: t
         });
 
-        // Add new items
-        for (const item of data.items) {
+        // Add new items in parallel
+        const itemPromises = data.items.map(async (item) => {
             let actualIngredientId = item.ingredientId;
 
             if (!actualIngredientId) {
                 let ingredient = await Ingredient.findOne({
                     where: sequelize.where(
                         sequelize.fn('lower', sequelize.col('name')),
-                        sequelize.fn('lower', item.name)
+                        sequelize.fn('lower', item.name.trim())
                     ),
                     transaction: t
                 });
 
                 if (!ingredient) {
                     ingredient = await Ingredient.create({
-                        name: item.name,
+                        name: item.name.trim(),
                         unit: item.unit,
                         category: 'OPERASIONAL',
                         currentStock: 0,
@@ -163,13 +164,16 @@ export async function updateOperationalRequest(id: string, data: {
                 actualIngredientId = ingredient.id;
             }
 
-            await PurchaseItem.create({
+            return {
                 purchaseId: purchase.id,
                 ingredientId: actualIngredientId,
                 estimatedQty: item.qty,
                 targetQty: item.qty
-            }, { transaction: t });
-        }
+            };
+        });
+
+        const purchaseItemsData = await Promise.all(itemPromises);
+        await PurchaseItem.bulkCreate(purchaseItemsData, { transaction: t });
 
         await t.commit();
         revalidatePath('/operational-requests');
@@ -182,6 +186,7 @@ export async function updateOperationalRequest(id: string, data: {
         return { error: error.message || 'Failed to update operational request' };
     }
 }
+
 
 // ASLAP fetches their own operational requests
 export async function getOperationalRequests(filters?: { startDate?: string; endDate?: string }) {

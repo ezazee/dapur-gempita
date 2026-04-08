@@ -13,6 +13,7 @@ export interface MenuIngredientAttributes {
     qtyKecil?: number;
     qtyBumil?: number;
     qtyBalita?: number;
+    isSecukupnya?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -31,6 +32,7 @@ class MenuIngredient extends Model<MenuIngredientAttributes, MenuIngredientCreat
     declare public qtyKecil?: number;
     declare public qtyBumil?: number;
     declare public qtyBalita?: number;
+    declare public isSecukupnya?: boolean;
     declare public readonly createdAt: Date;
     declare public readonly updatedAt: Date;
 }
@@ -91,6 +93,12 @@ MenuIngredient.init(
             type: DataTypes.DOUBLE,
             allowNull: true,
             field: 'qty_balita'
+        },
+        isSecukupnya: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+            field: 'is_secukupnya'
         }
     },
     {

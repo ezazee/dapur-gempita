@@ -19,7 +19,12 @@ import {
     TabsList,
     TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, X, Calculator, History, BookOpen, Loader2, Save, Warehouse, Copy } from 'lucide-react';
+import { Plus, X, Calculator, History, BookOpen, Loader2, Save, Warehouse, Copy, Zap, AlertCircle } from 'lucide-react';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+} from "@/components/ui/alert";
 import { createMenu, updateMenu, deleteMenu } from '@/app/actions/menus';
 import { getRecipeByName } from '@/app/actions/recipes';
 import { toast } from 'sonner';
@@ -83,7 +88,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
         gramasi?: number | string;
         unit: string;
         currentStock?: number;
-        nutritionPer100g?: any;
+        isSecukupnya?: boolean;
     }[]>([]);
 
     const [ingredientsKering, setIngredientsKering] = useState<{
@@ -101,6 +106,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
         gramasi?: number | string;
         unit: string;
         currentStock?: number;
+        isSecukupnya?: boolean;
     }[]>([]);
 
     const [omprengId, setOmprengId] = useState<string | null>(null);
@@ -143,6 +149,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                 gramasi: ing.qtyBesar || 0,
                 unit: finalUnit,
                 currentStock: 0,
+                isSecukupnya: Number(ing.qtyBesar) === 0,
                 nutritionPer100g: ing.ingredient?.nutritionPer100g || {}
             };
         });
@@ -588,11 +595,11 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
     }, [open, menuToEdit, initialData]);
 
     const addEmptyRowOmpreng = () => {
-        setIngredientsOmpreng([...ingredientsOmpreng, { tempId: Date.now(), name: '', qty: 0, gramasi: 0, qtyBesar: 0, qtyKecil: 0, qtyBumil: 0, qtyBalita: 0, unit: 'kg', currentStock: 0 }]);
+        setIngredientsOmpreng([...ingredientsOmpreng, { tempId: Date.now(), name: '', qty: 0, gramasi: 0, qtyBesar: 0, qtyKecil: 0, qtyBumil: 0, qtyBalita: 0, unit: 'kg', isSecukupnya: false, currentStock: 0 }]);
     };
 
     const addEmptyRowKering = () => {
-        setIngredientsKering([...ingredientsKering, { tempId: Date.now(), name: '', qty: 0, gramasi: 0, qtyBesar: 0, qtyKecil: 0, qtyBumil: 0, qtyBalita: 0, unit: 'kg', currentStock: 0 }]);
+        setIngredientsKering([...ingredientsKering, { tempId: Date.now(), name: '', qty: 0, gramasi: 0, qtyBesar: 0, qtyKecil: 0, qtyBumil: 0, qtyBalita: 0, unit: 'kg', isSecukupnya: false, currentStock: 0 }]);
     };
 
     const updateIngredientOmprengMultiple = (tempId: number, updates: Partial<typeof ingredientsOmpreng[0]>) => {
@@ -691,7 +698,8 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                     qtyKecil: kc === undefined || isNaN(kc) ? undefined : kc,
                     qtyBumil: bm === undefined || isNaN(bm) ? undefined : bm,
                     qtyBalita: bl === undefined || isNaN(bl) ? undefined : bl,
-                    unit: i.unit.trim()
+                    unit: i.unit.trim(),
+                    isSecukupnya: i.isSecukupnya || false
                 };
             })
         };
@@ -1314,8 +1322,18 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                                         </Button>
                                                     </div>
                                                 </div>
-                                                <div className="rounded-md border bg-card overflow-x-auto">
-                                                    <table className="w-full text-xs">
+                                                <div className="space-y-4">
+                                                    {ingredientsOmpreng.some(i => i.isSecukupnya) && (
+                                                        <Alert className="mb-0 bg-amber-50 border-amber-200 text-amber-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                            <Zap className="h-4 w-4 text-amber-600" />
+                                                            <AlertTitle className="text-sm font-bold">Bahan Secukupnya Terdeteksi</AlertTitle>
+                                                            <AlertDescription className="text-xs opacity-90">
+                                                                Beberapa bahan ditandai sebagai <b>secukupnya</b>. Bahan-bahan ini tidak akan dimasukkan dalam kalkulasi stok gudang karena kuantitasnya fleksibel.
+                                                            </AlertDescription>
+                                                        </Alert>
+                                                    )}
+                                                    <div className="rounded-md border bg-card overflow-x-auto">
+                                                        <table className="w-full text-xs">
                                                         <thead className="bg-muted text-muted-foreground uppercase border-b shadow-sm sticky top-0 z-10">
                                                             <tr>
                                                                 <th className="px-4 py-3 text-left font-bold min-w-[140px]">Bahan</th>
@@ -1339,59 +1357,84 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                                                 const fTotal = formatRecipeQty(Number(item.qty) || 0, item.unit);
 
                                                                 return (
-                                                                    <tr key={item.tempId} className="hover:bg-muted/30 transition-colors">
-                                                                        <td className="px-3 py-2"><IngredientCombobox value={item.name} onSelectIngredient={(ing) => updateIngredientOmprengMultiple(item.tempId, { name: ing.name, unit: ing.unit, currentStock: ing.currentStock || 0 })} />
+                                                                    <tr key={item.tempId} className={`transition-all duration-300 ${item.isSecukupnya ? 'bg-amber-50/50' : 'hover:bg-muted/30'}`}>
+                                                                        <td className="px-3 py-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className={`h-8 w-8 rounded-full transition-all flex-shrink-0 ${item.isSecukupnya ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm' : 'text-muted-foreground hover:bg-amber-100 hover:text-amber-600'}`}
+                                                                                    onClick={() => updateIngredientOmprengMultiple(item.tempId, { isSecukupnya: !item.isSecukupnya })}
+                                                                                    title={item.isSecukupnya ? "Bahan secukupnya (aktif)" : "Tandai bahan secukupnya"}
+                                                                                >
+                                                                                    <Zap className={`h-4 w-4 ${item.isSecukupnya ? 'animate-pulse' : ''}`} />
+                                                                                </Button>
+                                                                                <div className="flex-1">
+                                                                                    <IngredientCombobox value={item.name} onSelectIngredient={(ing) => updateIngredientOmprengMultiple(item.tempId, { name: ing.name, unit: ing.unit, currentStock: ing.currentStock || 0 })} />
+                                                                                </div>
+                                                                            </div>
                                                                         </td>
                                                                         <td className="px-3 py-3 text-center text-xs text-muted-foreground bg-muted/20 font-medium">
                                                                             {item.currentStock ?? 0} {item.unit}
                                                                         </td>
                                                                         <td className="px-2 py-2">
-                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${isOmprengBesarActive ? 'bg-muted/20 border-transparent hover:border-muted-foreground/20' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale'}`}>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    step="0.001"
-                                                                                    disabled={!isOmprengBesarActive}
-                                                                                    className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isOmprengBesarActive && 'text-muted-foreground'}`}
-                                                                                    style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                                                                                    value={item.qtyBesar ? fBesar.value : ''}
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fBesar.unit, item.unit);
-                                                                                        updateIngredientOmpreng(item.tempId, 'qtyBesar', val);
-                                                                                    }}
-                                                                                />
-                                                                                <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fBesar.unit}</span>
+                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${item.isSecukupnya ? 'bg-amber-100/50 border-amber-200 opacity-60' : (isOmprengBesarActive ? 'bg-muted/20 border-transparent hover:border-muted-foreground/20' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale')}`}>
+                                                                                {item.isSecukupnya ? (
+                                                                                    <div className="h-10 flex-1 flex items-center justify-center text-[10px] font-bold text-amber-700 italic uppercase tracking-wider">Secukupnya</div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            step="0.001"
+                                                                                            disabled={!isOmprengBesarActive}
+                                                                                            className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isOmprengBesarActive && 'text-muted-foreground'}`}
+                                                                                            style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                                                                                            value={item.qtyBesar ? fBesar.value : ''}
+                                                                                            onChange={(e) => {
+                                                                                                const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fBesar.unit, item.unit);
+                                                                                                updateIngredientOmpreng(item.tempId, 'qtyBesar', val);
+                                                                                            }}
+                                                                                        />
+                                                                                        <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fBesar.unit}</span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </td>
 
                                                                         <td className="px-2 py-2">
-                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${isOmprengKecilActive ? 'bg-muted/20 border-transparent hover:border-muted-foreground/20' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale'}`}>
-                                                                                <Input
-
-                                                                                    type="number"
-                                                                                    step="0.001"
-                                                                                    disabled={!isOmprengKecilActive}
-                                                                                    className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isOmprengKecilActive && 'text-muted-foreground'}`}
-                                                                                    style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                                                                                    value={item.qtyKecil ? fKecil.value : ''}
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fKecil.unit, item.unit);
-                                                                                        updateIngredientOmpreng(item.tempId, 'qtyKecil', val);
-                                                                                    }}
-                                                                                />
-                                                                                <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fKecil.unit}</span>
+                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${item.isSecukupnya ? 'bg-amber-100/50 border-amber-200 opacity-60' : (isOmprengKecilActive ? 'bg-muted/20 border-transparent hover:border-muted-foreground/20' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale')}`}>
+                                                                                {item.isSecukupnya ? (
+                                                                                    <div className="h-10 flex-1 flex items-center justify-center text-[10px] font-bold text-amber-700 italic uppercase tracking-wider">Secukupnya</div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            step="0.001"
+                                                                                            disabled={!isOmprengKecilActive}
+                                                                                            className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isOmprengKecilActive && 'text-muted-foreground'}`}
+                                                                                            style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                                                                                            value={item.qtyKecil ? fKecil.value : ''}
+                                                                                            onChange={(e) => {
+                                                                                                const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fKecil.unit, item.unit);
+                                                                                                updateIngredientOmpreng(item.tempId, 'qtyKecil', val);
+                                                                                            }}
+                                                                                        />
+                                                                                        <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fKecil.unit}</span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </td>
 
                                                                         <td className="px-1 py-1">
-                                                                            <div className="flex items-center gap-1 bg-muted/40 p-1 w-full rounded border border-primary/10">
+                                                                            <div className={`flex items-center gap-1 p-1 w-full rounded border ${item.isSecukupnya ? 'bg-amber-100 border-amber-300' : 'bg-muted/40 border-primary/10'}`}>
                                                                                 <Input
-                                                                                    type="number"
-                                                                                    step="0.001"
-                                                                                    className="h-12 text-center text-lg font-bold bg-transparent flex-1 border-none shadow-none focus-visible:ring-0 no-spinner px-0" style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                                                                                    value={fTotal.value || ''}
+                                                                                    type="text"
+                                                                                    className={`h-12 text-center text-lg font-bold bg-transparent flex-1 border-none shadow-none focus-visible:ring-0 no-spinner px-0 ${item.isSecukupnya ? 'text-amber-700' : ''}`} style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                                                                                    value={item.isSecukupnya ? '∞' : (fTotal.value || '')}
                                                                                     readOnly
                                                                                 />
-                                                                                <span className="text-xs font-bold text-primary w-12 pr-1 break-keep">{fTotal.unit}</span>
+                                                                                <span className={`text-xs font-bold w-12 pr-1 break-keep ${item.isSecukupnya ? 'text-amber-700' : 'text-primary'}`}>{fTotal.unit}</span>
                                                                             </div>
                                                                         </td>
 
@@ -1404,6 +1447,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
                                     )}
                                 </div>
 
@@ -1814,8 +1858,18 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                                         <Plus className="h-3 w-3 mr-1" /> + Snack
                                                     </Button>
                                                 </div>
-                                                <div className="rounded-md border bg-card overflow-x-auto">
-                                                    <table className="w-full text-xs">
+                                                <div className="space-y-4">
+                                                    {ingredientsKering.some(i => i.isSecukupnya) && (
+                                                        <Alert className="mb-0 bg-amber-50 border-amber-200 text-amber-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                            <Zap className="h-4 w-4 text-amber-600" />
+                                                            <AlertTitle className="text-sm font-bold">Snack Secukupnya Terdeteksi</AlertTitle>
+                                                            <AlertDescription className="text-xs opacity-90">
+                                                                Beberapa snack ditandai sebagai <b>secukupnya</b>. Bahan ini akan ditangani manual dan tidak memotong stok otomatis.
+                                                            </AlertDescription>
+                                                        </Alert>
+                                                    )}
+                                                    <div className="rounded-md border bg-card overflow-x-auto">
+                                                        <table className="w-full text-xs">
                                                         <thead className="bg-orange-100/50 text-orange-800 uppercase border-b border-orange-200 shadow-sm sticky top-0 z-10">
                                                             <tr>
                                                                 <th className="px-2 py-2 text-left w-auto font-bold min-w-[100px]">Snack</th>
@@ -1843,58 +1897,84 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                                                 const fTotal = formatRecipeQty(Number(item.qty) || 0, item.unit);
 
                                                                 return (
-                                                                    <tr key={item.tempId} className="hover:bg-orange-50/40 transition-colors">
-                                                                        <td className="px-3 py-2"><IngredientCombobox value={item.name} category="KERING" onSelectIngredient={(ing) => updateIngredientKeringMultiple(item.tempId, { name: ing.name, unit: ing.unit, currentStock: ing.currentStock || 0 })} />
+                                                                    <tr key={item.tempId} className={`transition-all duration-300 ${item.isSecukupnya ? 'bg-amber-50/50' : 'hover:bg-orange-50/40'}`}>
+                                                                        <td className="px-3 py-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className={`h-8 w-8 rounded-full transition-all flex-shrink-0 ${item.isSecukupnya ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm' : 'text-muted-foreground hover:bg-amber-100 hover:text-amber-600'}`}
+                                                                                    onClick={() => updateIngredientKeringMultiple(item.tempId, { isSecukupnya: !item.isSecukupnya })}
+                                                                                    title={item.isSecukupnya ? "Bahan secukupnya (aktif)" : "Tandai bahan secukupnya"}
+                                                                                >
+                                                                                    <Zap className={`h-4 w-4 ${item.isSecukupnya ? 'animate-pulse' : ''}`} />
+                                                                                </Button>
+                                                                                <div className="flex-1">
+                                                                                    <IngredientCombobox value={item.name} category="KERING" onSelectIngredient={(ing) => updateIngredientKeringMultiple(item.tempId, { name: ing.name, unit: ing.unit, currentStock: ing.currentStock || 0 })} />
+                                                                                </div>
+                                                                            </div>
                                                                         </td>
                                                                         <td className="px-1 py-1 text-center text-[12px] text-muted-foreground bg-orange-50/20 font-medium">
                                                                             {item.currentStock ?? 0} {item.unit}
                                                                         </td>
                                                                         <td className="px-2 py-2">
-                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${isKeringBesarActive ? 'bg-muted/20 border-transparent hover:border-orange-200/50' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale'}`}>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    step="0.001"
-                                                                                    disabled={!isKeringBesarActive}
-                                                                                    className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isKeringBesarActive && 'text-muted-foreground'}`}
-                                                                                    style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                                                                                    value={item.qtyBesar ? fBesar.value : ''}
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fBesar.unit, item.unit);
-                                                                                        updateIngredientKering(item.tempId, 'qtyBesar', val);
-                                                                                    }}
-                                                                                />
-                                                                                <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fBesar.unit}</span>
+                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${item.isSecukupnya ? 'bg-amber-100/50 border-amber-200 opacity-60' : (isKeringBesarActive ? 'bg-muted/20 border-transparent hover:border-orange-200/50' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale')}`}>
+                                                                                {item.isSecukupnya ? (
+                                                                                    <div className="h-10 flex-1 flex items-center justify-center text-[10px] font-bold text-amber-700 italic uppercase tracking-wider">Secukupnya</div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            step="0.001"
+                                                                                            disabled={!isKeringBesarActive}
+                                                                                            className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isKeringBesarActive && 'text-muted-foreground'}`}
+                                                                                            style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                                                                                            value={item.qtyBesar ? fBesar.value : ''}
+                                                                                            onChange={(e) => {
+                                                                                                const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fBesar.unit, item.unit);
+                                                                                                updateIngredientKering(item.tempId, 'qtyBesar', val);
+                                                                                            }}
+                                                                                        />
+                                                                                        <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fBesar.unit}</span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </td>
 
                                                                         <td className="px-2 py-2">
-                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${isKeringKecilActive ? 'bg-muted/20 border-transparent hover:border-orange-200/50' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale'}`}>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    step="0.001"
-                                                                                    disabled={!isKeringKecilActive}
-                                                                                    className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isKeringKecilActive && 'text-muted-foreground'}`}
-                                                                                    style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                                                                                    value={item.qtyKecil ? fKecil.value : ''}
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fKecil.unit, item.unit);
-                                                                                        updateIngredientKering(item.tempId, 'qtyKecil', val);
-                                                                                    }}
-                                                                                />
-                                                                                <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fKecil.unit}</span>
+                                                                            <div className={`flex items-center gap-1 p-1 rounded border transition-all ${item.isSecukupnya ? 'bg-amber-100/50 border-amber-200 opacity-60' : (isKeringKecilActive ? 'bg-muted/20 border-transparent hover:border-orange-200/50' : 'bg-muted/10 border-dashed border-muted-foreground/20 opacity-40 pointer-events-none grayscale')}`}>
+                                                                                {item.isSecukupnya ? (
+                                                                                    <div className="h-10 flex-1 flex items-center justify-center text-[10px] font-bold text-amber-700 italic uppercase tracking-wider">Secukupnya</div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            step="0.001"
+                                                                                            disabled={!isKeringKecilActive}
+                                                                                            className={`h-10 text-center text-sm font-semibold flex-1 border-none bg-transparent shadow-none focus-visible:ring-0 no-spinner px-0 ${!isKeringKecilActive && 'text-muted-foreground'}`}
+                                                                                            style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                                                                                            value={item.qtyKecil ? fKecil.value : ''}
+                                                                                            onChange={(e) => {
+                                                                                                const val = e.target.value === '' ? '' : denormalizeQty(parseFloat(e.target.value), fKecil.unit, item.unit);
+                                                                                                updateIngredientKering(item.tempId, 'qtyKecil', val);
+                                                                                            }}
+                                                                                        />
+                                                                                        <span className="text-xs text-muted-foreground w-12 font-semibold pr-1 break-keep">{fKecil.unit}</span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </td>
 
                                                                         <td className="px-1 py-1">
-                                                                            <div className="flex items-center gap-2 bg-orange-50/40 p-1 rounded border border-orange-300/30">
+                                                                            <div className={`flex items-center gap-2 p-1 rounded border ${item.isSecukupnya ? 'bg-amber-100 border-amber-300' : 'bg-orange-50/40 border-orange-300/30'}`}>
                                                                                 <Input
-                                                                                    type="number"
-                                                                                    step="0.001"
-                                                                                    className="h-12 text-center text-lg font-bold bg-transparent flex-1 border-none shadow-none focus-visible:ring-0 text-orange-900" style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
-                                                                                    value={fTotal.value || ''}
+                                                                                    type="text"
+                                                                                    className={`h-12 text-center text-lg font-bold bg-transparent flex-1 border-none shadow-none focus-visible:ring-0 ${item.isSecukupnya ? 'text-amber-700' : 'text-orange-900'}`} style={{ WebkitAppearance: 'none', MozAppearance: 'textfield' }}
+                                                                                    value={item.isSecukupnya ? '∞' : (fTotal.value || '')}
                                                                                     readOnly
                                                                                 />
-                                                                                <span className="text-xs font-bold text-orange-700 w-12 pr-1 break-keep">{fTotal.unit}</span>
+                                                                                <span className={`text-xs font-bold w-12 pr-1 break-keep ${item.isSecukupnya ? 'text-amber-700' : 'text-orange-700'}`}>{fTotal.unit}</span>
                                                                             </div>
                                                                         </td>
 
@@ -1907,6 +1987,7 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
                                     )}
                                 </div>
                             </div>
@@ -1944,14 +2025,18 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                 </thead>
                                 <tbody className="divide-y divide-border">
                                     {(() => {
-                                        const summary: Record<string, { name: string, unit: string, req: number, stock: number }> = {};
+                                        const summary: Record<string, { name: string, unit: string, req: number, stock: number, isSecukupnya: boolean }> = {};
                                         [...ingredientsOmpreng, ...ingredientsKering].forEach(ing => {
                                             if (!ing.name.trim()) return;
                                             const key = ing.name.toLowerCase().trim();
                                             if (!summary[key]) {
-                                                summary[key] = { name: ing.name, unit: ing.unit, req: 0, stock: Number(ing.currentStock) || 0 };
+                                                summary[key] = { name: ing.name, unit: ing.unit, req: 0, stock: Number(ing.currentStock) || 0, isSecukupnya: false };
                                             }
-                                            summary[key].req += Number(ing.qty) || 0;
+                                            if (ing.isSecukupnya) {
+                                                summary[key].isSecukupnya = true;
+                                            } else {
+                                                summary[key].req += Number(ing.qty) || 0;
+                                            }
                                         });
 
                                         const items = Object.values(summary);
@@ -1966,18 +2051,29 @@ export function CreateMenuDialog({ open, onOpenChange, date, onSuccess, menuToEd
                                         }
 
                                         return items.map((item, idx) => {
-                                            const isShortage = item.stock < item.req;
+                                            const isShortage = !item.isSecukupnya && item.stock < item.req;
                                             return (
-                                                <tr key={idx} className="hover:bg-muted/30 transition-colors">
-                                                    <td className="px-1 py-2 font-semibold text-foreground">{item.name}</td>
-                                                    <td className="px-1 py-2 text-center font-bold text-primary">
-                                                        {item.req.toLocaleString('id-ID')} <span className="text-[10px] font-normal text-muted-foreground">{item.unit}</span>
+                                                <tr key={idx} className={`hover:bg-muted/30 transition-colors ${item.isSecukupnya ? 'bg-amber-50/20' : ''}`}>
+                                                    <td className="px-2 py-2 font-semibold text-foreground flex items-center gap-2">
+                                                        {item.isSecukupnya && <Zap className="h-3 w-3 text-amber-500" />}
+                                                        {item.name}
                                                     </td>
-                                                    <td className="px-1 py-2 text-center font-bold">
+                                                    <td className="px-2 py-2 text-center font-bold text-primary">
+                                                        {item.isSecukupnya ? (
+                                                            <span className="text-amber-600 italic">Secukupnya</span>
+                                                        ) : (
+                                                            <>{item.req.toLocaleString('id-ID')} <span className="text-[10px] font-normal text-muted-foreground">{item.unit}</span></>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2 text-center font-bold">
                                                         {item.stock.toLocaleString('id-ID')} <span className="text-[10px] font-normal text-muted-foreground">{item.unit}</span>
                                                     </td>
-                                                    <td className="px-1 py-2 text-center">
-                                                        {item.req === 0 ? (
+                                                    <td className="px-2 py-2 text-center">
+                                                        {item.isSecukupnya ? (
+                                                            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200 font-bold text-[10px] px-2 py-0.5 uppercase">
+                                                                Cek Manual
+                                                            </Badge>
+                                                        ) : item.req === 0 ? (
                                                             <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[10px] px-2 py-0.5 uppercase">
                                                                 Isi Manual
                                                             </Badge>

@@ -13,12 +13,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, AlertTriangle, Info } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { createRecipe, updateRecipe } from '@/app/actions/recipes';
 import { toast } from 'sonner';
 import { IngredientCombobox } from '@/components/shared/IngredientCombobox';
-import { formatRecipeQty } from '@/lib/utils';
+import { formatRecipeQty, cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface CreateRecipeDialogProps {
     open: boolean;
@@ -135,8 +136,19 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess, recipeToEdit
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (ingredients.length === 0) {
+            toast.error('Tambahkan setidaknya satu bahan');
+            return;
+        }
+
         if (ingredients.some(i => !i.name.trim())) {
             toast.error('Nama bahan tidak boleh kosong');
+            return;
+        }
+
+        const invalidQty = ingredients.find(i => !i.isSecukupnya && (!i.qtyBesar || Number(i.qtyBesar) <= 0));
+        if (invalidQty) {
+            toast.error(`Jumlah bahan "${invalidQty.name || 'baru'}" tidak boleh kosong atau 0`);
             return;
         }
 
@@ -322,16 +334,48 @@ export function CreateRecipeDialog({ open, onOpenChange, onSuccess, recipeToEdit
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 pt-2 pb-1">
-                                        <Checkbox
-                                            id={`secukupnya-${item.tempId}`}
-                                            checked={item.isSecukupnya}
-                                            onCheckedChange={(checked) => updateIngredient(item.tempId, 'isSecukupnya', !!checked)}
-                                        />
-                                        <label htmlFor={`secukupnya-${item.tempId}`} className="text-xs font-medium text-amber-700 cursor-pointer select-none">
-                                            Secukupnya (tidak ada qty pasti)
-                                        </label>
+                                    <div className="flex items-center gap-2 pt-2 border-t border-dashed mt-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className={cn(
+                                                "h-7 text-[10px] font-bold uppercase transition-all",
+                                                item.isSecukupnya 
+                                                    ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200" 
+                                                    : "hover:bg-amber-50"
+                                            )}
+                                            onClick={() => {
+                                                const newState = !item.isSecukupnya;
+                                                updateIngredientMultiple(item.tempId, {
+                                                    isSecukupnya: newState,
+                                                    qtyBesar: newState ? 0 : 0.1,
+                                                    qtyKecil: newState ? 0 : '',
+                                                    qtyBumil: newState ? 0 : '',
+                                                    qtyBalita: newState ? 0 : ''
+                                                });
+                                            }}
+                                        >
+                                            {item.isSecukupnya ? '⚡ Secukupnya Aktif' : 'Atur Secukupnya'}
+                                        </Button>
+
+                                        {item.isSecukupnya && (
+                                            <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                                                <Info className="h-3 w-3" />
+                                                Takaran akan ditentukan oleh Pembeli/ASLAP
+                                            </span>
+                                        )}
                                     </div>
+
+                                    {item.isSecukupnya && (
+                                        <Alert className="mt-2 py-2 bg-amber-50/50 border-amber-200">
+                                            <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                            <AlertTitle className="text-xs font-bold text-amber-800 mb-0">Perhatian Gizi</AlertTitle>
+                                            <AlertDescription className="text-[10px] text-amber-700 leading-tight">
+                                                Bahan ini ditandai <b>Secukupnya</b>. Gramasi porsi (Besar, Kecil, dll) tidak dihitung dalam database. Pastikan Chef/Aslap tahu takaran standar di lapangan.
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
 
                                     <div className="grid grid-cols-4 gap-3 pt-2">
                                         {item.isSecukupnya ? (

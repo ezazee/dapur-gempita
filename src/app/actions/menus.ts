@@ -75,12 +75,13 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
                 unit: i.unit,
                 currentStock: i.currentStock,
                 // Access the join table attributes via the Model name (MenuIngredient)
-                qtyNeeded: (i as any).MenuIngredient?.qtyNeeded || 0,
-                gramasi: (i as any).MenuIngredient?.gramasi || null,
-                qtyBesar: (i as any).MenuIngredient?.qtyBesar || 0,
-                qtyKecil: (i as any).MenuIngredient?.qtyKecil || 0,
-                qtyBumil: (i as any).MenuIngredient?.qtyBumil || 0,
-                qtyBalita: (i as any).MenuIngredient?.qtyBalita || 0,
+                qtyNeeded: (i as any).MenuIngredient?.qtyNeeded ?? 0,
+                gramasi: (i as any).MenuIngredient?.gramasi ?? null,
+                qtyBesar: (i as any).MenuIngredient?.qtyBesar ?? 0,
+                qtyKecil: (i as any).MenuIngredient?.qtyKecil ?? 0,
+                qtyBumil: (i as any).MenuIngredient?.qtyBumil ?? 0,
+                qtyBalita: (i as any).MenuIngredient?.qtyBalita ?? 0,
+                isSecukupnya: (i as any).MenuIngredient?.isSecukupnya ?? false,
                 evaluationStatus: (i as any).MenuIngredient?.evaluationStatus || null,
                 evaluationNote: (i as any).MenuIngredient?.evaluationNote || null,
             }))
@@ -109,7 +110,8 @@ export async function createMenu(data: {
         qtyKecil?: number;
         qtyBumil?: number;
         qtyBalita?: number;
-        unit: string
+        unit: string;
+        isSecukupnya?: boolean;
     }[]
 }) {
     const session = await getSession();
@@ -158,10 +160,11 @@ export async function createMenu(data: {
 
                 let finalQty = item.qty;
                 let finalGramasi = item.gramasi;
-                let finalQtyBesar = item.qtyBesar;
-                let finalQtyKecil = item.qtyKecil;
-                let finalQtyBumil = item.qtyBumil;
-                let finalQtyBalita = item.qtyBalita;
+                // Always carry forward the portion values - default to 0 if not provided
+                let finalQtyBesar = Number(item.qtyBesar) || 0;
+                let finalQtyKecil = Number(item.qtyKecil) || 0;
+                let finalQtyBumil = Number(item.qtyBumil) || 0;
+                let finalQtyBalita = Number(item.qtyBalita) || 0;
 
                 if (item.unit && ingredient.unit && item.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
                     finalQty = denormalizeQty(item.qty, item.unit, ingredient.unit);
@@ -173,7 +176,6 @@ export async function createMenu(data: {
                 }
 
                 // Link to Menu
-                // Ensure granular portions are recorded for later editing/viewing
                 await MenuIngredient.create({
                     menuId: menu.id,
                     ingredientId: ingredient.id,
@@ -182,7 +184,8 @@ export async function createMenu(data: {
                     qtyBesar: finalQtyBesar,
                     qtyKecil: finalQtyKecil,
                     qtyBumil: finalQtyBumil,
-                    qtyBalita: finalQtyBalita
+                    qtyBalita: finalQtyBalita,
+                    isSecukupnya: item.isSecukupnya || false
                 });
             }
         }
@@ -253,6 +256,7 @@ export async function updateMenu(id: string, data: {
         qtyKecil?: number;
         qtyBumil?: number;
         qtyBalita?: number;
+        isSecukupnya?: boolean;
     }[]
 }) {
     const session = await getSession();
@@ -311,10 +315,11 @@ export async function updateMenu(id: string, data: {
 
                 let finalQty = item.qty;
                 let finalGramasi = item.gramasi;
-                let finalQtyBesar = item.qtyBesar;
-                let finalQtyKecil = item.qtyKecil;
-                let finalQtyBumil = item.qtyBumil;
-                let finalQtyBalita = item.qtyBalita;
+                // Always carry forward the portion values - default to 0 if not provided
+                let finalQtyBesar = Number(item.qtyBesar) || 0;
+                let finalQtyKecil = Number(item.qtyKecil) || 0;
+                let finalQtyBumil = Number(item.qtyBumil) || 0;
+                let finalQtyBalita = Number(item.qtyBalita) || 0;
 
                 if (item.unit && ingredient.unit && item.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
                     finalQty = denormalizeQty(item.qty, item.unit, ingredient.unit);
@@ -333,7 +338,8 @@ export async function updateMenu(id: string, data: {
                     qtyBesar: finalQtyBesar,
                     qtyKecil: finalQtyKecil,
                     qtyBumil: finalQtyBumil,
-                    qtyBalita: finalQtyBalita
+                    qtyBalita: finalQtyBalita,
+                    isSecukupnya: item.isSecukupnya || false
                 });
             }
         }
