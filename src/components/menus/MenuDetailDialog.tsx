@@ -301,10 +301,22 @@ export function MenuDetailDialog({ open, onOpenChange, menu }: MenuDetailDialogP
                                                             <tr key={`${ing.id}-${idx}`} className="hover:bg-muted/20">
                                                                 <td className="px-4 py-2 font-medium text-foreground">{ing.name}</td>
                                                                 <td className="px-4 py-2 text-right text-muted-foreground whitespace-nowrap">
-                                                                    {gramasiPerPorsi ? `${formatRecipeQty(gramasiPerPorsi, ing.unit).stringValue} ${formatRecipeQty(gramasiPerPorsi, ing.unit).unit}` : '-'}
+                                                                    {ing.isSecukupnya ? (
+                                                                        <span className="text-amber-600 italic font-medium flex items-center justify-end gap-1">
+                                                                            <Zap className="h-3 w-3" /> Secukupnya
+                                                                        </span>
+                                                                    ) : (
+                                                                        gramasiPerPorsi ? `${formatRecipeQty(gramasiPerPorsi, ing.unit).stringValue} ${formatRecipeQty(gramasiPerPorsi, ing.unit).unit}` : '-'
+                                                                    )}
                                                                 </td>
-                                                                <td className="px-4 py-2 text-right font-bold text-primary">{formattedQty.stringValue}</td>
-                                                                <td className="px-4 py-2 text-center text-muted-foreground">{formattedQty.unit}</td>
+                                                                <td className="px-4 py-2 text-right font-bold text-primary">
+                                                                    {ing.isSecukupnya ? (
+                                                                        <span className="text-amber-600 text-lg">∞</span>
+                                                                    ) : (
+                                                                        formattedQty.stringValue
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center text-muted-foreground">{ing.isSecukupnya ? '-' : formattedQty.unit}</td>
                                                                 <td className="px-4 py-2">
                                                                     <div className="flex items-center gap-2">
                                                                         {ing.evaluationStatus && (
