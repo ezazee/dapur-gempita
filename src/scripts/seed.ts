@@ -419,42 +419,6 @@ async function main() {
             await RecipeIngredient.bulkCreate(Array.from(recipeIngsMap.values()));
         }
 
-        // 6. Seed a Sample Menu for testing (Todays Date)
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        
-        // Find "Ayam Goreng" recipe we just created
-        const ayamRecipe = await Recipe.findOne({ where: { name: { [Op.iLike]: '%Ayam%' } }, include: [{ model: Ingredient, as: 'ingredients' }] });
-        
-        if (ayamRecipe) {
-            const mId = uuidv4();
-            await Menu.create({
-                id: mId,
-                name: ayamRecipe.name,
-                menuType: 'OMPRENG',
-                menuDate: today,
-                description: ayamRecipe.description,
-                countBesar: 100,
-                countKecil: 0,
-                countBumil: 0,
-                countBalita: 0,
-                createdBy: ADMIN_ID
-            });
-
-            // Add ingredients to this menu from recipe
-            const recipeIngs = await RecipeIngredient.findAll({ where: { recipeId: ayamRecipe.id } });
-            for (const ri of recipeIngs) {
-                await MenuIngredient.create({
-                    menuId: mId,
-                    ingredientId: ri.ingredientId,
-                    qtyNeeded: ri.qtyBesar * 100, // 100 pax
-                    gramasi: ri.qtyBesar,
-                    qtyBesar: ri.qtyBesar,
-                    isSecukupnya: ri.isSecukupnya
-                });
-            }
-        }
-
         console.log(`Successfully parsed ${files.length} TXT files and seeded everything!`);
         process.exit(0);
     } catch (e: any) {
