@@ -68,9 +68,20 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             editHistory: m.editHistory || [],
             productionCount: m.productions?.length || 0,
             ingredients: m.ingredients.map((i: any) => {
-                // Defensive check for join table data (handles minification mangling)
-                const details = (i as any).MenuIngredient || (i as any).menuIngredientData || (i as any).menu_ingredients || {};
+                // EXTREME ROBUSTNESS: Check all possible Sequelize property names for the join table
+                const details = i.MenuIngredient || 
+                                i.menu_ingredient || 
+                                i.menu_ingredients || 
+                                i.menuIngredientData || 
+                                (i.dataValues && i.dataValues.MenuIngredient) ||
+                                (i.dataValues && i.dataValues.menu_ingredient) ||
+                                {};
                 
+                // Debug log (only in server console) to see the structure
+                if (details.qtyNeeded === undefined) {
+                    console.log('DEBUG: Ingredient join table not found for', i.name, 'Keys:', Object.keys(i));
+                }
+
                 return {
                     id: i.id,
                     miId: details.id,
@@ -78,13 +89,13 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
                     name: i.name,
                     unit: i.unit,
                     currentStock: i.currentStock,
-                    qtyNeeded: details.qtyNeeded ?? 0,
-                    gramasi: details.gramasi ?? null,
-                    qtyBesar: details.qtyBesar ?? 0,
-                    qtyKecil: details.qtyKecil ?? 0,
-                    qtyBumil: details.qtyBumil ?? 0,
-                    qtyBalita: details.qtyBalita ?? 0,
-                    isSecukupnya: details.isSecukupnya ?? false,
+                    qtyNeeded: Number(details.qtyNeeded) || 0,
+                    gramasi: Number(details.gramasi) || null,
+                    qtyBesar: Number(details.qtyBesar) || 0,
+                    qtyKecil: Number(details.qtyKecil) || 0,
+                    qtyBumil: Number(details.qtyBumil) || 0,
+                    qtyBalita: Number(details.qtyBalita) || 0,
+                    isSecukupnya: !!details.isSecukupnya,
                     evaluationStatus: details.evaluationStatus || null,
                     evaluationNote: details.evaluationNote || null,
                 };
