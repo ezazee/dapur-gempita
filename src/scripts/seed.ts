@@ -5,9 +5,12 @@ import {
     User,
     Ingredient,
     Recipe,
-    RecipeIngredient
+    RecipeIngredient,
+    Menu,
+    MenuIngredient
 } from '../models';
 import { v4 as uuidv4 } from 'uuid';
+import { Op } from 'sequelize';
 import fs from 'fs';
 import path from 'path';
 
@@ -307,14 +310,17 @@ async function main() {
         ]);
 
         // 2. Seed Users
-        const giziId = uuidv4();
+        const ADMIN_ID = '46d98156-aee5-4b43-86be-4ea02756168c';
+        const GIZI_ID = '33187216-0906-47ec-8d21-9957262453e1';
+        const CHEF_ID = 'a505136c-1c54-4c61-ae3b-c37a6aa6941b';
+
         await User.bulkCreate([
-            { id: uuidv4(), roleId: 1, email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
-            { id: giziId, roleId: 2, email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
-            { roleId: 3, email: "keuangan@gempita.id", password: "pembeli1", name: "Bagian Keuangan" },
-            { roleId: 4, email: "aslap@gempita.id", password: "aslap123", name: "Aslap (Asisten Lapangan)" },
-            { id: uuidv4(), roleId: 5, email: "chef@gempita.id", password: "chef1234", name: "Juru Masak" },
-            { roleId: 6, email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
+            { id: ADMIN_ID, roleId: 1, email: "admin@gempita.id", password: "admin123", name: "Admin Utama" },
+            { id: GIZI_ID, roleId: 2, email: "gizi@gempita.id", password: "gizi1234", name: "Ahli Gizi" },
+            { id: '407e770f-178a-449e-b830-1c6f5529f796', roleId: 3, email: "keuangan@gempita.id", password: "pembeli1", name: "Bagian Keuangan" },
+            { id: '1b4396ca-0402-4217-9150-136467367c33', roleId: 4, email: "aslap@gempita.id", password: "aslap123", name: "Aslap (Asisten Lapangan)" },
+            { id: CHEF_ID, roleId: 5, email: "chef@gempita.id", password: "chef1234", name: "Juru Masak" },
+            { id: '965f700c-8097-48f5-aae8-360e25bd5753', roleId: 6, email: "kepala@gempita.id", password: "kepala12", name: "Kepala Dapur" },
         ], { individualHooks: true });
 
         // 3. Scan & Parse Menus from TXT
@@ -380,7 +386,7 @@ async function main() {
                 carbs: data.carbs || 0,
                 protein: data.protein || 0,
                 fat: data.fat || 0,
-                createdBy: giziId
+                createdBy: GIZI_ID
             });
 
             const recipeIngsMap = new Map();
@@ -411,6 +417,42 @@ async function main() {
                 }
             }
             await RecipeIngredient.bulkCreate(Array.from(recipeIngsMap.values()));
+        }
+
+        // 6. Seed a Sample Menu for testing (Todays Date)
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        // Find "Ayam Goreng" recipe we just created
+        const ayamRecipe = await Recipe.findOne({ where: { name: { [Op.iLike]: '%Ayam%' } }, include: [{ model: Ingredient, as: 'ingredients' }] });
+        
+        if (ayamRecipe) {
+            const mId = uuidv4();
+            await Menu.create({
+                id: mId,
+                name: ayamRecipe.name,
+                menuType: 'OMPRENG',
+                menuDate: today,
+                description: ayamRecipe.description,
+                countBesar: 100,
+                countKecil: 0,
+                countBumil: 0,
+                countBalita: 0,
+                createdBy: ADMIN_ID
+            });
+
+            // Add ingredients to this menu from recipe
+            const recipeIngs = await RecipeIngredient.findAll({ where: { recipeId: ayamRecipe.id } });
+            for (const ri of recipeIngs) {
+                await MenuIngredient.create({
+                    menuId: mId,
+                    ingredientId: ri.ingredientId,
+                    qtyNeeded: ri.qtyBesar * 100, // 100 pax
+                    gramasi: ri.qtyBesar,
+                    qtyBesar: ri.qtyBesar,
+                    isSecukupnya: ri.isSecukupnya
+                });
+            }
         }
 
         console.log(`Successfully parsed ${files.length} TXT files and seeded everything!`);

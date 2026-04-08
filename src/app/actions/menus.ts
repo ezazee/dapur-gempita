@@ -68,20 +68,23 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             editHistory: m.editHistory || [],
             productionCount: m.productions?.length || 0,
             ingredients: m.ingredients.map((i: any) => {
-                // EXTREME ROBUSTNESS: Check all possible Sequelize property names for the join table
-                const details = i.MenuIngredient || 
-                                i.menu_ingredient || 
-                                i.menu_ingredients || 
-                                i.menuIngredientData || 
-                                (i.dataValues && i.dataValues.MenuIngredient) ||
-                                (i.dataValues && i.dataValues.menu_ingredient) ||
-                                {};
+                // INDESTRUCTIBLE PRODUCTION FIX
+                // 1. Get plain object to bypass Sequelize getters/proxies
+                const plainIng = i.get ? i.get({ plain: true }) : i;
                 
-                // Debug log (only in server console) to see the structure
-                if (details.qtyNeeded === undefined) {
-                    console.log('DEBUG: Ingredient join table not found for', i.name, 'Keys:', Object.keys(i));
+                // 2. Aggressive search for the join table data
+                let details = plainIng.MenuIngredient || plainIng.menu_ingredients || plainIng.menu_ingredient || plainIng.menuIngredientData || {};
+                
+                if (!details.qtyNeeded && details.qtyNeeded !== 0 && !details.isSecukupnya) {
+                    // Exhaustive scan for any object-type property that contains our target fields
+                    const possibleKey = Object.keys(plainIng).find(key => 
+                        plainIng[key] && 
+                        typeof plainIng[key] === 'object' && 
+                        ('qtyNeeded' in plainIng[key] || 'qty_needed' in plainIng[key] || 'isSecukupnya' in plainIng[key] || 'is_secukupnya' in plainIng[key])
+                    );
+                    if (possibleKey) details = plainIng[possibleKey];
                 }
-
+                
                 return {
                     id: i.id,
                     miId: details.id,
@@ -89,15 +92,15 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
                     name: i.name,
                     unit: i.unit,
                     currentStock: i.currentStock,
-                    qtyNeeded: Number(details.qtyNeeded) || 0,
+                    qtyNeeded: Number(details.qtyNeeded ?? details.qty_needed) || 0,
                     gramasi: Number(details.gramasi) || null,
-                    qtyBesar: Number(details.qtyBesar) || 0,
-                    qtyKecil: Number(details.qtyKecil) || 0,
-                    qtyBumil: Number(details.qtyBumil) || 0,
-                    qtyBalita: Number(details.qtyBalita) || 0,
-                    isSecukupnya: !!details.isSecukupnya,
-                    evaluationStatus: details.evaluationStatus || null,
-                    evaluationNote: details.evaluationNote || null,
+                    qtyBesar: Number(details.qtyBesar ?? details.qty_besar) || 0,
+                    qtyKecil: Number(details.qtyKecil ?? details.qty_kecil) || 0,
+                    qtyBumil: Number(details.qtyBumil ?? details.qty_bumil) || 0,
+                    qtyBalita: Number(details.qtyBalita ?? details.qty_balita) || 0,
+                    isSecukupnya: !!(details.isSecukupnya || details.is_secukupnya),
+                    evaluationStatus: details.evaluationStatus || details.evaluation_status || null,
+                    evaluationNote: details.evaluationNote || details.evaluation_note || null,
                 };
             })
         }));
