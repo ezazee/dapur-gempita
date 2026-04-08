@@ -67,24 +67,28 @@ export async function getMenus(startDate?: Date, endDate?: Date) {
             evaluatorId: m.evaluatorId,
             editHistory: m.editHistory || [],
             productionCount: m.productions?.length || 0,
-            ingredients: m.ingredients.map((i: any) => ({
-                id: i.id,
-                miId: (i as any).MenuIngredient?.id,
-                menuId: m.id,
-                name: i.name,
-                unit: i.unit,
-                currentStock: i.currentStock,
-                // Access the join table attributes via the Model name (MenuIngredient)
-                qtyNeeded: (i as any).MenuIngredient?.qtyNeeded ?? 0,
-                gramasi: (i as any).MenuIngredient?.gramasi ?? null,
-                qtyBesar: (i as any).MenuIngredient?.qtyBesar ?? 0,
-                qtyKecil: (i as any).MenuIngredient?.qtyKecil ?? 0,
-                qtyBumil: (i as any).MenuIngredient?.qtyBumil ?? 0,
-                qtyBalita: (i as any).MenuIngredient?.qtyBalita ?? 0,
-                isSecukupnya: (i as any).MenuIngredient?.isSecukupnya ?? false,
-                evaluationStatus: (i as any).MenuIngredient?.evaluationStatus || null,
-                evaluationNote: (i as any).MenuIngredient?.evaluationNote || null,
-            }))
+            ingredients: m.ingredients.map((i: any) => {
+                // Defensive check for join table data (handles minification mangling)
+                const details = (i as any).MenuIngredient || (i as any).menuIngredientData || (i as any).menu_ingredients || {};
+                
+                return {
+                    id: i.id,
+                    miId: details.id,
+                    menuId: m.id,
+                    name: i.name,
+                    unit: i.unit,
+                    currentStock: i.currentStock,
+                    qtyNeeded: details.qtyNeeded ?? 0,
+                    gramasi: details.gramasi ?? null,
+                    qtyBesar: details.qtyBesar ?? 0,
+                    qtyKecil: details.qtyKecil ?? 0,
+                    qtyBumil: details.qtyBumil ?? 0,
+                    qtyBalita: details.qtyBalita ?? 0,
+                    isSecukupnya: details.isSecukupnya ?? false,
+                    evaluationStatus: details.evaluationStatus || null,
+                    evaluationNote: details.evaluationNote || null,
+                };
+            })
         }));
     } catch (error) {
         console.error('Error fetching menus:', error);

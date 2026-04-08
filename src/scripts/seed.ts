@@ -39,7 +39,7 @@ function getCleanName(originalName: string): string {
 // --- Mapping ingredient names to Standard Inventory Names and units ---
 function mapIngredient(rawName: string): { name: string, unit: string } | null {
     const raw = rawName.toLowerCase();
-    
+
     if (raw === 'energi' || raw === 'protein' || raw === 'lemak' || raw.includes('karbohidrat') || raw === 'kalori') return null;
 
     if (raw.includes('ayam')) return { name: 'Ayam Potong', unit: 'potong' };
@@ -182,7 +182,7 @@ function parseQuantity(line: string, mappedUnit: string) {
 function parseMenuFile(filePath: string) {
     const text = fs.readFileSync(filePath, 'utf-8');
     const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-    
+
     let name = lines[0].match(/^\d+\s*[-—]\s*(.+)$/)?.[1]?.trim() || lines[0];
     let calories = 0, carbs = 0, protein = 0, fat = 0;
     let ingredients: any[] = [];
@@ -295,7 +295,7 @@ async function main() {
         console.log('Seeding database:', (sequelize.options as any).host, (sequelize.options as any).database);
         await sequelize.authenticate();
         await sequelize.sync({ force: true });
-        
+
         // 1. Seed Roles
         await Role.bulkCreate([
             { id: 1, name: 'SUPER_ADMIN' },
@@ -326,7 +326,7 @@ async function main() {
 
         // 4. Collect & Seed All Ingredients
         const ingredientMap = new Map();
-        
+
         // Baseline Stocks
         const baseline = [
             { name: 'Daging Sapi Has Dalam', unit: 'kg' },
@@ -339,7 +339,7 @@ async function main() {
             { name: 'Gula', unit: 'kg' },
         ];
         baseline.forEach(b => {
-             ingredientMap.set(getCleanName(b.name), {
+            ingredientMap.set(getCleanName(b.name), {
                 id: uuidv4(),
                 name: getCleanName(b.name),
                 unit: b.unit,

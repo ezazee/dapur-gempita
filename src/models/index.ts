@@ -22,16 +22,36 @@ Role.hasMany(User, { foreignKey: 'roleId', as: 'users' });
 User.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 
 // Menu & Ingredients
-Menu.belongsToMany(Ingredient, { through: MenuIngredient, foreignKey: 'menuId', otherKey: 'ingredientId', as: 'ingredients' });
-Ingredient.belongsToMany(Menu, { through: MenuIngredient, foreignKey: 'ingredientId', otherKey: 'menuId', as: 'menus' });
+Menu.belongsToMany(Ingredient, { 
+    through: MenuIngredient, 
+    foreignKey: 'menuId', 
+    otherKey: 'ingredientId', 
+    as: 'ingredients' 
+});
+Ingredient.belongsToMany(Menu, { 
+    through: MenuIngredient, 
+    foreignKey: 'ingredientId', 
+    otherKey: 'menuId', 
+    as: 'menus' 
+});
 Menu.hasMany(MenuIngredient, { foreignKey: 'menuId', as: 'items' });
 MenuIngredient.belongsTo(Ingredient, { foreignKey: 'ingredientId', as: 'ingredient' });
 Menu.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 Menu.belongsTo(User, { foreignKey: 'evaluatorId', as: 'evaluator' });
 
 // Recipes & Ingredients
-Recipe.belongsToMany(Ingredient, { through: RecipeIngredient, foreignKey: 'recipeId', otherKey: 'ingredientId', as: 'ingredients' });
-Ingredient.belongsToMany(Recipe, { through: RecipeIngredient, foreignKey: 'ingredientId', otherKey: 'recipeId', as: 'recipes' });
+Recipe.belongsToMany(Ingredient, { 
+    through: RecipeIngredient, 
+    foreignKey: 'recipeId', 
+    otherKey: 'ingredientId', 
+    as: 'ingredients' 
+});
+Ingredient.belongsToMany(Recipe, { 
+    through: RecipeIngredient, 
+    foreignKey: 'ingredientId', 
+    otherKey: 'recipeId', 
+    as: 'recipes' 
+});
 Recipe.hasMany(RecipeIngredient, { foreignKey: 'recipeId', as: 'items' });
 RecipeIngredient.belongsTo(Ingredient, { foreignKey: 'ingredientId', as: 'ingredient' });
 Recipe.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
