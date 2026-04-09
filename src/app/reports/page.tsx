@@ -42,7 +42,7 @@ const urlToBase64 = (url: string): Promise<string> => {
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 ctx.drawImage(img, 0, 0);
-                resolve(canvas.toDataURL('image/jpeg'));
+                resolve(canvas.toDataURL('image/png'));
             } else {
                 reject(new Error('Canvas context is null'));
             }
